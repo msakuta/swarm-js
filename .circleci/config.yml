@@ -25,7 +25,7 @@ jobs:
 
       - run:
           name: Push gh-pages
-          command: deploy.sh
+          command: ./deploy.sh
 
       - run:
           name: Install certificate for uploading artifacts to AWS S3
