@@ -1,0 +1,32 @@
+{
+  "name": "swarm",
+  "version": "1.0.0",
+  "description": "Swarm fight game",
+  "main": "index.js",
+  "scripts": {
+    "build": "babel src --minified --plugins @babel/plugin-transform-arrow-functions -s true -d lib",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "msakuta",
+  "license": "MIT",
+  "devDependencies": {
+    "@babel/cli": "^7.5.5",
+    "@babel/core": "^7.5.5",
+    "@babel/preset-env": "^7.5.5",
+    "babel-cli": "^6.26.0",
+    "babelify": "^10.0.0",
+    "browserify": "^16.3.0",
+    "gulp": "^4.0.2",
+    "gulp-exit": "0.0.2",
+    "gulp-rename": "^1.4.0",
+    "gulp-sourcemaps": "^2.6.5",
+    "gulp-uglify": "^3.0.2",
+    "vinyl-buffer": "^1.0.1",
+    "vinyl-source-stream": "^2.0.0",
+    "watchify": "^3.11.1"
+  },
+  "dependencies": {
+    "@babel/polyfill": "^7.4.4",
+    "jquery": "^3.4.1"
+  }
+}
