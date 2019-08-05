@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: node:10.16.1-alpine
+      - image: circleci/node
 
     steps:
       - checkout
@@ -22,6 +22,10 @@ jobs:
             mkdir -p /tmp/artifacts
             cp index.html /tmp/artifacts/
             cp -r build /tmp/artifacts/
+
+      - run:
+          name: Push gh-pages
+          command: deploy.sh
 
       - run:
           name: Install certificate for uploading artifacts to AWS S3
