@@ -8,9 +8,20 @@ jobs:
       - checkout
 
       - run:
-        name: npm install
-        command: npm i
+          name: npm install
+          command: npm i
 
       - run:
           name: npm build
           command: npm run build
+
+      - run: |
+          set -xu
+          mkdir -p /tmp/artifacts
+          cp index.html /tmp/artifacts/
+          cp -r build /tmp/artifacts/
+
+      # Save artifacts
+      - store_artifacts:
+          path: /tmp/artifacts
+          destination: build
