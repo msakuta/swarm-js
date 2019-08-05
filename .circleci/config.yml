@@ -23,15 +23,15 @@ jobs:
             cp index.html /tmp/artifacts/
             cp -r build /tmp/artifacts/
 
-      - run:
-          name: Push gh-pages
-          command: ./deploy.sh
-
-      - run:
-          name: Install certificate for uploading artifacts to AWS S3
-          command: apk add ca-certificates
-
       # Save artifacts
       - store_artifacts:
           path: /tmp/artifacts
           destination: build
+
+      - run:
+          name: Push gh-pages
+          command: |
+            if [ "${CIRCLE_BRANCH}" = "master" ]; then
+              ./deploy.sh
+            fi
+
