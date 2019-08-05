@@ -15,11 +15,11 @@ var uglify = require('gulp-uglify');
 var sourcemaps = require('gulp-sourcemaps');
 
 
-function compile(watch) {
-    var bundler = watchify(browserify('./src/app.js', {debug: true}).transform(babelify));
+function compile(watch, cb) {
+    var compiler = browserify('./src/app.js', {debug: true}).transform(babelify);
 
-    function rebundle() {
-        return bundler
+    function rebundle(compiler) {
+        return compiler
             .bundle()
             .on('error', function (err) {
                 console.error(err);
@@ -35,23 +35,24 @@ function compile(watch) {
     }
 
     if (watch) {
+        var bundler = watchify(compiler);
         bundler.on('update', function () {
             console.log('-> bundling...');
-            rebundle();
+            rebundle(bundler);
         });
 
-        rebundle();
+        rebundle(compiler);
     } else {
-        rebundle().pipe(exit());
+        return rebundle(compiler);
     }
 }
 
 function watch() {
-    return compile(true);
+    return compile(true, () => {});
 }
 
-gulp.task('build', function () {
-    return compile();
+gulp.task('build', function (cb) {
+    return compile(false, cb);
 });
 gulp.task('watch', function () {
     return watch();

@@ -1,0 +1,12 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: node:10.16.1-alpine
+
+    steps:
+      - checkout
+
+      - run:
+          name: npm build
+          command: npm run build
