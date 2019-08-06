@@ -18,8 +18,8 @@ var sourcemaps = require('gulp-sourcemaps');
 function compile(watch, cb) {
     var compiler = browserify('./src/app.js', {debug: true}).transform(babelify);
 
-    function rebundle(compiler) {
-        return compiler
+    function rebundle(compiler, useUglify) {
+        let pre = compiler
             .bundle()
             .on('error', function (err) {
                 console.error(err);
@@ -28,8 +28,10 @@ function compile(watch, cb) {
             .pipe(source('build.js'))
             .pipe(buffer())
             .pipe(rename('index.min.js'))
-            .pipe(sourcemaps.init({loadMaps: true}))
-            .pipe(uglify())
+            .pipe(sourcemaps.init({loadMaps: true}));
+        if(useUglify)
+            pre = pre.pipe(uglify());
+        return pre
             .pipe(sourcemaps.write('./'))
             .pipe(gulp.dest('./build'));
     }
@@ -43,7 +45,7 @@ function compile(watch, cb) {
 
         rebundle(compiler);
     } else {
-        return rebundle(compiler);
+        return rebundle(compiler, true);
     }
 }
 
