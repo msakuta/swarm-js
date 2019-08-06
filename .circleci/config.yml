@@ -45,10 +45,7 @@ jobs:
 
       - run:
           name: Push gh-pages
-          command: |
-            if [ "${CIRCLE_BRANCH}" = "master" ]; then
-              ./deploy.sh
-            fi
+          command: ./deploy.sh
 
 workflows:
   version: 2
