@@ -1,9 +1,98 @@
 const $ = require('jquery');
+require('konva');
+const { perlin_noise_pixel } = require('./perlinNoise');
+
+let minimapCanvas;
+let minimap;
+let stage;
+let rootLayer;
+let game = new function(){
+    this.xs = 50;
+    this.ys = 50;
+    this.board = new Array(this.xs * this.ys);
+    for(let xi = 0; xi < this.xs; xi++){
+        for(let yi = 0; yi < this.ys; yi++){
+            let dx = xi - 25;
+            let dy = yi - 25;
+            this.board[xi + yi * this.xs] = 
+                Math.max(0, perlin_noise_pixel(xi, yi, 3) - Math.sqrt(dx * dx + dy * dy) / 50) > 0.1;
+        }
+    }
+
+    this.cellAt = function(x, y){
+        return this.board[x + y * this.xs];
+    };
+}();
+
+
+
+
+function paintMinimap(y0,ys){
+    var context = minimapCanvas.getContext("2d");
+    var image = context.getImageData(0, y0, game.xs, ys);
+
+    var pixels = game.xs * game.ys;
+    var imageData = image.data; // here we detach the pixels array from DOM
+    var land = [0, 127, 0],
+        left = [0, 159, 0], right = [0, 91, 0], up = [0, 191, 0], down = [0, 63, 0],
+        ocean = [14,39,214];
+    var cols = [
+        land, down, left, down,
+        right, down, right, down,
+        up, left, up, left,
+        up, right, up, land
+    ];
+    for(var y = y0; y < y0 + ys; y++) for(var x = 0; x < game.xs; x++){
+        var pixels = (y - y0) * game.xs + x;
+        var col = [0, 255 * game.cellAt(x, y), 255];
+        imageData[4*pixels+0] = col[0]; // Red value
+        imageData[4*pixels+1] = col[1]; // Green value
+        imageData[4*pixels+2] = col[2]; // Blue value
+        imageData[4*pixels+3] = 255; // Alpha value
+    }
+//		image.data = imageData; // And here we attache it back (not needed cf. update)
+    context.putImageData(image, 0, y0);
+}
+
+function genImage(){
+    var image = new Image();
+    image.src = minimapCanvas.toDataURL("image/png");
+    image.onload = function(){
+        minimap = new Konva.Image({
+            x: 0,
+            y: 0,
+            image: image,
+            width: 500,
+            height: 500
+        });
+        stage.children[0].add(minimap);
+
+        // draw the image
+        stage.children[0].draw();
+    };
+}
 
 window.addEventListener('load', () => {
-    $('#scratch').on('click', () => alert("Hello"))
 
-    let scratch = $('#scratch')
-    if(scratch)
-        scratch.click(() => alert('Hello there again!'))
+    minimapCanvas = document.getElementById("minimap");
+
+    paintMinimap(0, game.ys);
+
+    // first we need to create a stage
+    stage = new Konva.Stage({
+        container: 'scratch',   // id of container <div>
+        width: 500,
+        height: 500
+    });
+
+    // then create layer
+    var layer = new Konva.Layer();
+
+    // add the layer to the stage
+    stage.add(layer);
+
+    // draw the image
+    layer.draw();
+
+    genImage();
 })
