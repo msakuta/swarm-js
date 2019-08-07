@@ -24,12 +24,13 @@ let game = new function(){
         return this.board[x + y * this.xs];
     };
 
-    this.boardAs2DArray = function(){
+    this.boardAs2DArray = function(map){
+        map = map || (x => x);
         let ret = [];
         for(let yi = 0; yi < this.ys; yi++){
             let row = [];
             for(let xi = 0; xi < this.xs; xi++)
-                row.push(this.cellAt(xi, yi));
+                row.push(map(this.cellAt(xi, yi)));
             ret.push(row);
         }
         return ret;
@@ -102,7 +103,7 @@ window.addEventListener('load', () => {
 
     let layer = new Konva.Layer();
 
-    let lines = MarchingSquaresJS.isoLines(game.boardAs2DArray(), 0.5);
+    let lines = MarchingSquaresJS.isoLines(game.boardAs2DArray(x => 1 - x), 0.5);
     for(let line of lines){
         let strLine = "M";
         for(let vertex of line)
