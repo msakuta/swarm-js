@@ -1,7 +1,8 @@
 const $ = require('jquery');
 require('konva');
 const { perlin_noise_pixel } = require('./perlinNoise');
-var MarchingSquaresJS = require('marchingsquares');
+const MarchingSquaresJS = require('marchingsquares');
+const simplify = require('simplify-js');
 
 let minimapCanvas;
 let minimap;
@@ -105,9 +106,14 @@ window.addEventListener('load', () => {
 
     let lines = MarchingSquaresJS.isoLines(game.boardAs2DArray(x => 1 - x), 0.5);
     for(let line of lines){
+        let simpleLine = simplify(line.map(p => ({x: p[0], y: p[1]})), 0.5, false);
+        console.log(`Simplified ${line.length} points to ${simpleLine.length} points`);
+        // Don't bother adding polygons without area
+        if(simpleLine.length <= 2)
+            continue;
         let strLine = "M";
-        for(let vertex of line)
-            strLine += vertex[0] + "," + vertex[1] + "L";
+        for(let vertex of simpleLine)
+            strLine += vertex.x + "," + vertex.y + "L";
         let polygon = new Konva.Path({
             x: 0.5 * stage.width() / game.xs,
             y: 0.5 * stage.height() / game.ys,

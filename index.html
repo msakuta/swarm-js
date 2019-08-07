@@ -1,18 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Tower Defense Game Test with CreateJS/EaselJS</title>
+    <title>Swarm Game</title>
     <!-- <script type="text/javascript" src="node_modules/jquery/dist/jquery.min.js"></script> -->
-	<script type="text/javascript" src="build/index.min.js"></script>
+    <script type="text/javascript" src="build/index.min.js"></script>
+    <style>
+        body{
+            background-color: #000;
+            color: #fff;
+            text-align: center;
+        }
+
+        #scratch{
+            width: 500px;
+            height: 500px;
+            display: inline-block;
+        }
+    </style>
 </head>
-<body id="body" style="background-color: #000; color: #fff">
+<body id="body">
 	<div id="header">
 		<h1>Swarm Game</h1>
-	</div>
-	<div id="scratch" style="width: 500px; height: 500px;"></div>
+    </div>
+    <div id="scratch"></div>
     <canvas id="minimap" width="50px" height="50px" style="display: none; width: 50px; height: 50px;"></canvas>
-	<hr>
-    <div>Powered by <a href="https://konvajs.org/">Konva.js</a> and
-        <a href="https://github.com/RaumZeit/MarchingSquares.js/tree/master">MarchingSquares.js</a><div>
+    <hr>
+    <div>Source on <a href="https://github.com/msakuta/swarm-js">GitHub</a>.</div>
+    <div>Powered by <a href="https://konvajs.org/">Konva.js</a>,
+        <a href="https://github.com/RaumZeit/MarchingSquares.js/tree/master">MarchingSquares.js</a> and
+        <a href="http://mourner.github.io/simplify-js/">simplify.js</a>.<div>
 </body>
 </html>
