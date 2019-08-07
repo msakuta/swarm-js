@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@babel/polyfill": "^7.4.4",
+    "delaunator": "^4.0.0",
     "jquery": "^3.4.1",
     "konva": "^4.0.0",
     "marchingsquares": "^1.3.3",

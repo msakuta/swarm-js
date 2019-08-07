@@ -3,6 +3,7 @@ require('konva');
 const { perlin_noise_pixel } = require('./perlinNoise');
 const MarchingSquaresJS = require('marchingsquares');
 const simplify = require('simplify-js');
+const Delaunator = require('delaunator');
 
 let minimapCanvas;
 let minimap;
@@ -103,8 +104,10 @@ window.addEventListener('load', () => {
     stage.add(firstLayer);
 
     let layer = new Konva.Layer();
+    let triangleLayer = new Konva.Layer();
 
     let lines = MarchingSquaresJS.isoLines(game.boardAs2DArray(x => 1 - x), 0.5);
+    let allPoints = [];
     for(let line of lines){
         let simpleLine = simplify(line.map(p => ({x: p[0], y: p[1]})), 0.5, false);
         console.log(`Simplified ${line.length} points to ${simpleLine.length} points`);
@@ -125,11 +128,41 @@ window.addEventListener('load', () => {
             scaleY: stage.height() / game.ys
           });
         layer.add(polygon);
+
+        allPoints = allPoints.concat(simpleLine);
     }
+
+    // allPoints.map(p => [p.x, p.y]) would work too, but we don't want a copy
+    // of a big array.
+    let { triangles } = Delaunator.from(allPoints, p => p.x, p => p.y);
+
+    for (let i = 0; i < triangles.length; i += 3) {
+        let strTriangle = "M";
+        [
+            allPoints[triangles[i]],
+            allPoints[triangles[i + 1]],
+            allPoints[triangles[i + 2]]
+        ].forEach(v => {strTriangle += v.x + "," + v.y + "L"});
+        let triangle = new Konva.Path({
+            x: 0.5 * stage.width() / game.xs,
+            y: 0.5 * stage.height() / game.ys,
+            data: strTriangle,
+            stroke: 'rgba(1, 0, 1, 0.5)',
+            strokeWidth: 0.1,
+            fill: null,
+            scaleX: stage.width() / game.xs,
+            scaleY: stage.height() / game.ys
+        });
+        triangleLayer.add(triangle);
+    }
+
+    // Draw triangles below borders
+    stage.add(triangleLayer);
     stage.add(layer);
 
     // draw the image
     layer.draw();
+    triangleLayer.draw();
 
     genImage();
 })

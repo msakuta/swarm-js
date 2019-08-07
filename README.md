@@ -16,3 +16,4 @@ This project uses following external libraries:
 * [Konva.js](https://konvajs.org/)
 * [MarchingSquares.js](https://github.com/RaumZeit/MarchingSquares.js/tree/master)
 * [simplify.js](http://mourner.github.io/simplify-js/)
+* [Delaunator](https://github.com/mapbox/delaunator)
