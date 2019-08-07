@@ -11,4 +11,7 @@ Details coming soon!
 
 ## Libraries
 
-This project uses [Konva.js](https://konvajs.org/).
+This project uses following external libraries:
+
+* [Konva.js](https://konvajs.org/).
+* [MarchingSquares.js](https://github.com/RaumZeit/MarchingSquares.js/tree/master).

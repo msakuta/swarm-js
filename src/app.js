@@ -1,6 +1,7 @@
 const $ = require('jquery');
 require('konva');
 const { perlin_noise_pixel } = require('./perlinNoise');
+var MarchingSquaresJS = require('marchingsquares');
 
 let minimapCanvas;
 let minimap;
@@ -15,12 +16,23 @@ let game = new function(){
             let dx = xi - 25;
             let dy = yi - 25;
             this.board[xi + yi * this.xs] = 
-                Math.max(0, perlin_noise_pixel(xi, yi, 3) - Math.sqrt(dx * dx + dy * dy) / 50) > 0.1;
+                0. + (Math.max(0, perlin_noise_pixel(xi, yi, 3) - Math.sqrt(dx * dx + dy * dy) / 50) > 0.1);
         }
     }
 
     this.cellAt = function(x, y){
         return this.board[x + y * this.xs];
+    };
+
+    this.boardAs2DArray = function(){
+        let ret = [];
+        for(let yi = 0; yi < this.ys; yi++){
+            let row = [];
+            for(let xi = 0; xi < this.xs; xi++)
+                row.push(this.cellAt(xi, yi));
+            ret.push(row);
+        }
+        return ret;
     };
 }();
 
@@ -85,10 +97,28 @@ window.addEventListener('load', () => {
         height: 500
     });
 
-    // then create layer
-    var layer = new Konva.Layer();
+    let firstLayer = new Konva.Layer();
+    stage.add(firstLayer);
 
-    // add the layer to the stage
+    let layer = new Konva.Layer();
+
+    let lines = MarchingSquaresJS.isoLines(game.boardAs2DArray(), 0.5);
+    for(let line of lines){
+        let strLine = "M";
+        for(let vertex of line)
+            strLine += vertex[0] + "," + vertex[1] + "L";
+        let polygon = new Konva.Path({
+            x: 0.5 * stage.width() / game.xs,
+            y: 0.5 * stage.height() / game.ys,
+            data: strLine,
+            stroke: 'red',
+            strokeWidth: 0.2,
+            fill: null,
+            scaleX: stage.width() / game.xs,
+            scaleY: stage.height() / game.ys
+          });
+        layer.add(polygon);
+    }
     stage.add(layer);
 
     // draw the image
