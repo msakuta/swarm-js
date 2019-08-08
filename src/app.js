@@ -5,20 +5,24 @@ const MarchingSquaresJS = require('marchingsquares');
 const simplify = require('simplify-js');
 const Delaunator = require('delaunator');
 
+
+const WIDTH = 500;
+const HEIGHT = 500;
+
 let minimapCanvas;
 let minimap;
 let stage;
 let rootLayer;
 let game = new function(){
-    this.xs = 50;
-    this.ys = 50;
+    this.xs = 100;
+    this.ys = 100;
     this.board = new Array(this.xs * this.ys);
     for(let xi = 0; xi < this.xs; xi++){
         for(let yi = 0; yi < this.ys; yi++){
-            let dx = xi - 25;
-            let dy = yi - 25;
+            let dx = xi - this.xs / 2;
+            let dy = yi - this.ys / 2;
             this.board[xi + yi * this.xs] = 
-                0. + (Math.max(0, perlin_noise_pixel(xi, yi, 3) - Math.sqrt(dx * dx + dy * dy) / 50) > 0.1);
+                0. + (Math.max(0, perlin_noise_pixel(xi, yi, 3) - Math.sqrt(dx * dx + dy * dy) / this.xs) > 0.1);
         }
     }
 
@@ -77,8 +81,8 @@ function genImage(){
             x: 0,
             y: 0,
             image: image,
-            width: 500,
-            height: 500
+            width: WIDTH,
+            height: HEIGHT
         });
         stage.children[0].add(minimap);
 
@@ -88,16 +92,28 @@ function genImage(){
 }
 
 window.addEventListener('load', () => {
-
-    minimapCanvas = document.getElementById("minimap");
+    // Add hidden canvas dynamically to draw map image on,
+    // because we want to have variable size.
+    minimapCanvas = $("<canvas>", {
+        "id": "minimap",
+    })
+    .attr({
+        "width": game.xs + "px",
+        "height": game.ys + "px",
+    })
+    .css("width", game.xs + "px")
+    .css("height", game.ys + "px")
+    .css("display", "none")
+    .appendTo("#minimapContainer")
+    .get()[0];
 
     paintMinimap(0, game.ys);
 
     // first we need to create a stage
     stage = new Konva.Stage({
         container: 'scratch',   // id of container <div>
-        width: 500,
-        height: 500
+        width: WIDTH,
+        height: HEIGHT
     });
 
     let firstLayer = new Konva.Layer();
@@ -122,7 +138,7 @@ window.addEventListener('load', () => {
             y: 0.5 * stage.height() / game.ys,
             data: strLine,
             stroke: 'red',
-            strokeWidth: 0.2,
+            strokeWidth: 0.4,
             fill: null,
             scaleX: stage.width() / game.xs,
             scaleY: stage.height() / game.ys
@@ -148,7 +164,7 @@ window.addEventListener('load', () => {
             y: 0.5 * stage.height() / game.ys,
             data: strTriangle,
             stroke: 'rgba(1, 0, 1, 0.5)',
-            strokeWidth: 0.1,
+            strokeWidth: 0.2,
             fill: null,
             scaleX: stage.width() / game.xs,
             scaleY: stage.height() / game.ys
