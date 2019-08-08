@@ -91,7 +91,20 @@ function genImage(){
     };
 }
 
+let layer;
+let triangleLayer;
+
+function toggleTriangulation(){
+    let isVisible = $('#triangulationVisible').get()[0].checked;
+    if(layer)
+        layer.visible(isVisible);
+    if(triangleLayer)
+        triangleLayer.visible(isVisible);
+}
+
 window.addEventListener('load', () => {
+    $('#triangulationVisible').on('change', toggleTriangulation);
+
     // Add hidden canvas dynamically to draw map image on,
     // because we want to have variable size.
     minimapCanvas = $("<canvas>", {
@@ -119,8 +132,8 @@ window.addEventListener('load', () => {
     let firstLayer = new Konva.Layer();
     stage.add(firstLayer);
 
-    let layer = new Konva.Layer();
-    let triangleLayer = new Konva.Layer();
+    layer = new Konva.Layer();
+    triangleLayer = new Konva.Layer();
 
     let lines = MarchingSquaresJS.isoLines(game.boardAs2DArray(x => 1 - x), 0.5);
     let allPoints = [];
