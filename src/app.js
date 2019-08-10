@@ -8,25 +8,31 @@ const Delaunator = require('delaunator');
 
 const WIDTH = 500;
 const HEIGHT = 500;
+const FRAMERATE = 100;
 
 let minimapCanvas;
 let minimap;
 let stage;
 let rootLayer;
 let game = new function(){
-    this.xs = 100;
-    this.ys = 100;
+    this.xs = 150;
+    this.ys = 150;
     this.board = new Array(this.xs * this.ys);
     for(let xi = 0; xi < this.xs; xi++){
         for(let yi = 0; yi < this.ys; yi++){
             let dx = xi - this.xs / 2;
             let dy = yi - this.ys / 2;
             this.board[xi + yi * this.xs] = 
-                0. + (Math.max(0, perlin_noise_pixel(xi, yi, 3) - Math.sqrt(dx * dx + dy * dy) / this.xs) > 0.1);
+                0. + (Math.max(0, perlin_noise_pixel(xi, yi, 4) - Math.sqrt(dx * dx + dy * dy) / this.xs) > 0.1);
         }
     }
+    this.agents = [];
 
     this.cellAt = function(x, y){
+        x = Math.round(x);
+        y = Math.round(y);
+        if(x < 0 || this.xs <= x || y < 0 || this.ys <= y)
+            return 0;
         return this.board[x + y * this.xs];
     };
 
@@ -41,6 +47,41 @@ let game = new function(){
         }
         return ret;
     };
+
+    this.animate = function(){
+        if(this.agents.length < 50){
+            let pos;
+            for(let i = 0; i < 100; i++){
+                pos = [Math.random() * this.xs, Math.random() * this.ys];
+                if(1 === this.cellAt(pos[0], pos[1]))
+                    break;
+            }
+            let agent = {
+                pos,
+                team: Math.random() < 0.5,
+                target: null,
+            };
+            this.agents.push(agent);
+
+            let circle = new Konva.Circle({
+                x: agent.pos[0] * WIDTH / this.xs,
+                y: agent.pos[1] * HEIGHT / this.ys,
+                radius: 5,
+                fill: agent.team === false ? 'blue' : 'red',
+                stroke: 'black',
+                strokeWidth: 0.5
+            });
+            agentLayer.add(circle);
+            agent.shape = circle;
+        }
+        for(let agent of this.agents){
+            agent.pos[0] += Math.random() - 0.5;
+            agent.pos[1] += Math.random() - 0.5;
+            agent.shape.x( agent.pos[0] * WIDTH / this.xs);
+            agent.shape.y( agent.pos[1] * HEIGHT / this.ys);
+        }
+        agentLayer.draw();
+    }
 }();
 
 
@@ -63,7 +104,7 @@ function paintMinimap(y0,ys){
     ];
     for(var y = y0; y < y0 + ys; y++) for(var x = 0; x < game.xs; x++){
         var pixels = (y - y0) * game.xs + x;
-        var col = [0, 255 * game.cellAt(x, y), 255];
+        var col = [0, 127 * game.cellAt(x, y), 0];
         imageData[4*pixels+0] = col[0]; // Red value
         imageData[4*pixels+1] = col[1]; // Green value
         imageData[4*pixels+2] = col[2]; // Blue value
@@ -72,6 +113,8 @@ function paintMinimap(y0,ys){
 //		image.data = imageData; // And here we attache it back (not needed cf. update)
     context.putImageData(image, 0, y0);
 }
+
+let backgroundLayer;
 
 function genImage(){
     var image = new Image();
@@ -84,20 +127,21 @@ function genImage(){
             width: WIDTH,
             height: HEIGHT
         });
-        stage.children[0].add(minimap);
+        backgroundLayer.add(minimap);
 
         // draw the image
-        stage.children[0].draw();
+        backgroundLayer.draw();
     };
 }
 
-let layer;
+let agentLayer;
+let borderLayer;
 let triangleLayer;
 
 function toggleTriangulation(){
     let isVisible = $('#triangulationVisible').get()[0].checked;
-    if(layer)
-        layer.visible(isVisible);
+    if(borderLayer)
+        borderLayer.visible(isVisible);
     if(triangleLayer)
         triangleLayer.visible(isVisible);
 }
@@ -129,17 +173,17 @@ window.addEventListener('load', () => {
         height: HEIGHT
     });
 
-    let firstLayer = new Konva.Layer();
-    stage.add(firstLayer);
+    backgroundLayer = new Konva.Layer();
+    stage.add(backgroundLayer);
 
-    layer = new Konva.Layer();
+    borderLayer = new Konva.Layer();
     triangleLayer = new Konva.Layer();
 
     let lines = MarchingSquaresJS.isoLines(game.boardAs2DArray(x => 1 - x), 0.5);
     let allPoints = [];
     for(let line of lines){
         let simpleLine = simplify(line.map(p => ({x: p[0], y: p[1]})), 0.5, false);
-        console.log(`Simplified ${line.length} points to ${simpleLine.length} points`);
+        //console.log(`Simplified ${line.length} points to ${simpleLine.length} points`);
         // Don't bother adding polygons without area
         if(simpleLine.length <= 2)
             continue;
@@ -156,7 +200,7 @@ window.addEventListener('load', () => {
             scaleX: stage.width() / game.xs,
             scaleY: stage.height() / game.ys
           });
-        layer.add(polygon);
+          borderLayer.add(polygon);
 
         allPoints = allPoints.concat(simpleLine);
     }
@@ -187,11 +231,20 @@ window.addEventListener('load', () => {
 
     // Draw triangles below borders
     stage.add(triangleLayer);
-    stage.add(layer);
+    stage.add(borderLayer);
+
+    agentLayer = new Konva.Layer();
+    stage.add(agentLayer);
 
     // draw the image
-    layer.draw();
+    borderLayer.draw();
     triangleLayer.draw();
 
     genImage();
+
+    function frameProc(){
+        game.animate();
+        setTimeout(frameProc, FRAMERATE);
+    }
+    setTimeout(frameProc, FRAMERATE);
 })
