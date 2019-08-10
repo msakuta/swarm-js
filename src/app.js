@@ -75,10 +75,12 @@ let game = new function(){
             agent.shape = circle;
         }
         for(let agent of this.agents){
-            agent.pos[0] += Math.random() - 0.5;
-            agent.pos[1] += Math.random() - 0.5;
-            agent.shape.x( agent.pos[0] * WIDTH / this.xs);
-            agent.shape.y( agent.pos[1] * HEIGHT / this.ys);
+            let newpos = agent.pos.map(x => x + Math.random() - 0.5);
+            if(1 === this.cellAt(newpos[0], newpos[1])){
+                agent.pos = newpos;
+                agent.shape.x( agent.pos[0] * WIDTH / this.xs);
+                agent.shape.y( agent.pos[1] * HEIGHT / this.ys);
+            }
         }
         agentLayer.draw();
     }
