@@ -27,6 +27,7 @@ let game = new function(){
         }
     }
     this.agents = [];
+    this.bullets = [];
 
     this.cellAt = function(x, y){
         x = Math.round(x);
@@ -49,6 +50,7 @@ let game = new function(){
     };
 
     this.animate = function(){
+        // Spawn agents
         if(this.agents.length < 50){
             let pos;
             for(let i = 0; i < 100; i++){
@@ -60,6 +62,7 @@ let game = new function(){
                 pos,
                 team: Math.random() < 0.5,
                 target: null,
+                active: true,
             };
             this.agents.push(agent);
 
@@ -74,7 +77,45 @@ let game = new function(){
             agentLayer.add(circle);
             agent.shape = circle;
         }
+
+        // Animate bullets
+        for(let i = 0; i < this.bullets.length;){
+            let bullet = this.bullets[i];
+            let newpos = bullet.pos.map((x, i) => x + bullet.velo[i]);
+            let hit = (() => {
+                for(let j = 0; j < this.agents.length; j++){
+                    let agent = this.agents[j];
+                    if(agent.team !== bullet.team){
+                        let distance = Math.sqrt(agent.pos.map((x, i) => x - bullet.pos[i]).reduce((sum, x) => sum += x * x, 0));
+                        if(distance < 5.){
+                            agent.active = false;
+                            this.agents.splice(j, 1);
+                            agent.shape.remove();
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            })();
+
+            if(1 === this.cellAt(newpos[0], newpos[1]) && !hit){
+                bullet.pos = newpos;
+                bullet.shape.x( bullet.pos[0] * WIDTH / this.xs);
+                bullet.shape.y( bullet.pos[1] * HEIGHT / this.ys);
+                i++;
+            }
+            else{
+                this.bullets.splice(i, 1);
+                bullet.shape.remove();
+            }
+        }
+
+        // Animate agents
         for(let agent of this.agents){
+            // Forget about dead enemy
+            if(agent.target !== null && !agent.target.active)
+                agent.target = null;
+
             if(agent.target === null){
                 let bestAgent = null;
                 let bestDistance = 1e6;
@@ -96,6 +137,29 @@ let game = new function(){
             if(agent.target !== null){
                 let delta = agent.target.pos.map((x, i) => x - agent.pos[i]);
                 let distance = Math.sqrt(delta.reduce((sum, x) => sum += x * x, 0));
+
+                // Shoot bullets
+                if(distance < 100. && Math.random() < 0.05){
+                    let bullet = {
+                        pos: agent.pos,
+                        velo: delta.map(x => 3. * x / distance),
+                        team: agent.team,
+                    };
+
+                    this.bullets.push(bullet);
+
+                    let circle = new Konva.Circle({
+                        x: bullet.pos[0] * WIDTH / this.xs,
+                        y: bullet.pos[1] * HEIGHT / this.ys,
+                        radius: 3,
+                        fill: agent.team === false ? 'white' : 'purple',
+                        stroke: 'yellow',
+                        strokeWidth: 0.1
+                    });
+                    agentLayer.add(circle);
+                    bullet.shape = circle;
+                }
+
                 if(5. < distance){
                     let newpos = agent.pos.map((x, i) => x + 1 * delta[i] / distance /*Math.random() - 0.5*/);
                     if(1 === this.cellAt(newpos[0], newpos[1])){
