@@ -75,11 +75,35 @@ let game = new function(){
             agent.shape = circle;
         }
         for(let agent of this.agents){
-            let newpos = agent.pos.map(x => x + Math.random() - 0.5);
-            if(1 === this.cellAt(newpos[0], newpos[1])){
-                agent.pos = newpos;
-                agent.shape.x( agent.pos[0] * WIDTH / this.xs);
-                agent.shape.y( agent.pos[1] * HEIGHT / this.ys);
+            if(agent.target === null){
+                let bestAgent = null;
+                let bestDistance = 1e6;
+                for(let a of this.agents){
+                    if(a !== agent && a.team !== agent.team){
+                        let distance = Math.sqrt(a.pos.map((x, i) => x - agent.pos[i]).reduce((sum, x) => sum += x * x, 0));
+                        if(distance < bestDistance){
+                            bestAgent = a;
+                            bestDistance = distance;
+                        }
+                    }
+                }
+
+                if(bestAgent !== null){
+                    agent.target = bestAgent;
+                }
+            }
+
+            if(agent.target !== null){
+                let delta = agent.target.pos.map((x, i) => x - agent.pos[i]);
+                let distance = Math.sqrt(delta.reduce((sum, x) => sum += x * x, 0));
+                if(5. < distance){
+                    let newpos = agent.pos.map((x, i) => x + 1 * delta[i] / distance /*Math.random() - 0.5*/);
+                    if(1 === this.cellAt(newpos[0], newpos[1])){
+                        agent.pos = newpos;
+                        agent.shape.x( agent.pos[0] * WIDTH / this.xs);
+                        agent.shape.y( agent.pos[1] * HEIGHT / this.ys);
+                    }
+                }
             }
         }
         agentLayer.draw();
