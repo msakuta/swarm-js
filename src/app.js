@@ -8,7 +8,7 @@ const Delaunator = require('delaunator');
 
 const WIDTH = 500;
 const HEIGHT = 500;
-const FRAMERATE = 100;
+const FRAMERATE = 50;
 
 let minimapCanvas;
 let minimap;
@@ -52,31 +52,36 @@ let game = new function(){
     this.animate = function(){
         // Spawn agents
         if(this.agents.length < 50){
-            let pos;
-            for(let i = 0; i < 100; i++){
-                pos = [Math.random() * this.xs, Math.random() * this.ys];
-                if(1 === this.cellAt(pos[0], pos[1]))
-                    break;
-            }
-            let agent = {
-                pos,
-                team: Math.random() < 0.5,
-                target: null,
-                active: true,
-            };
-            this.agents.push(agent);
+            [0,1].map(team =>
+                [team, this.agents.reduce((accum, a) => accum + (a.team === team), 0)]
+            ).filter(([_, count]) => count < 20).forEach(([team, count]) => {
+                console.log(`filtered in [${team}]: ${count}`);
+                let pos;
+                for(let i = 0; i < 100; i++){
+                    pos = [Math.random() * this.xs, Math.random() * this.ys];
+                    if(1 === this.cellAt(pos[0], pos[1]))
+                        break;
+                }
+                let agent = {
+                    pos,
+                    team,
+                    target: null,
+                    active: true,
+                };
+                this.agents.push(agent);
 
-            let circle = new Konva.Circle({
-                x: agent.pos[0] * WIDTH / this.xs,
-                y: agent.pos[1] * HEIGHT / this.ys,
-                radius: 5,
-                fill: agent.team === false ? 'blue' : 'red',
-                stroke: 'black',
-                strokeWidth: 0.5
+                let circle = new Konva.Circle({
+                    x: agent.pos[0] * WIDTH / this.xs,
+                    y: agent.pos[1] * HEIGHT / this.ys,
+                    radius: 5,
+                    fill: agent.team === 0 ? 'blue' : 'red',
+                    stroke: 'black',
+                    strokeWidth: 0.5
+                });
+                agentLayer.add(circle);
+                agent.shape = circle;
             });
-            agentLayer.add(circle);
-            agent.shape = circle;
-        }
+    }
 
         // Animate bullets
         for(let i = 0; i < this.bullets.length;){
