@@ -79,6 +79,19 @@ let game = new function(){
                 });
                 agentLayer.add(circle);
                 agent.shape = circle;
+
+                let targetLine = new Konva.Line({
+                    points: [
+                        agent.pos[0] * WIDTH / this.xs,
+                        agent.pos[1] * HEIGHT / this.ys
+                    ],
+                    stroke: agent.team === 0 ? 'blue' : 'red',
+                    strokeWidth: 0.5,
+                    dash: [5, 5],
+                    visible: false,
+                });
+                agentLayer.add(targetLine);
+                agent.targetLine = targetLine;
             });
         }
 
@@ -95,6 +108,7 @@ let game = new function(){
                             agent.active = false;
                             this.agents.splice(j, 1);
                             agent.shape.remove();
+                            agent.targetLine.remove();
                             return true;
                         }
                     }
@@ -172,6 +186,16 @@ let game = new function(){
                         agent.shape.y( agent.pos[1] * HEIGHT / this.ys);
                     }
                 }
+                agent.targetLine.points([
+                    agent.pos[0] * WIDTH / this.xs,
+                    agent.pos[1] * HEIGHT / this.ys,
+                    agent.target.pos[0] * WIDTH / this.xs,
+                    agent.target.pos[1] * HEIGHT / this.ys,
+                ]);
+                agent.targetLine.visible(true);
+            }
+            else{
+                agent.targetLine.visible(false);
             }
         }
         agentLayer.draw();
