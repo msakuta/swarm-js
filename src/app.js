@@ -10,6 +10,15 @@ const WIDTH = 500;
 const HEIGHT = 500;
 const FRAMERATE = 50;
 
+class Agent{
+    target = null;
+    active = true;
+    constructor(pos, team){
+        this.pos = pos;
+        this.team = team;
+    }
+}
+
 let minimapCanvas;
 let minimap;
 let stage;
@@ -61,12 +70,7 @@ let game = new function(){
                     if(1 === this.cellAt(pos[0], pos[1]))
                         break;
                 }
-                let agent = {
-                    pos,
-                    team,
-                    target: null,
-                    active: true,
-                };
+                let agent = new Agent(pos, team);
                 this.agents.push(agent);
 
                 let circle = new Konva.Circle({

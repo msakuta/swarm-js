@@ -9,4 +9,8 @@ const presets = [
     ],
   ];
   
-  module.exports = { presets, sourceMaps: true };
+  module.exports = { presets, sourceMaps: true,
+    plugins: [
+      "@babel/plugin-proposal-class-properties"
+    ]
+  };
