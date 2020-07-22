@@ -17,6 +17,76 @@ class Agent{
         this.pos = pos;
         this.team = team;
     }
+
+    update(game){
+        // Forget about dead enemy
+        if(this.target !== null && !this.target.active)
+            this.target = null;
+
+        if(this.target === null){
+            let bestAgent = null;
+            let bestDistance = 1e6;
+            for(let a of game.agents){
+                if(a !== this && a.team !== this.team){
+                    let distance = Math.sqrt(a.pos.map((x, i) => x - this.pos[i]).reduce((sum, x) => sum += x * x, 0));
+                    if(distance < bestDistance){
+                        bestAgent = a;
+                        bestDistance = distance;
+                    }
+                }
+            }
+
+            if(bestAgent !== null){
+                this.target = bestAgent;
+            }
+        }
+
+        if(this.target !== null){
+            let delta = this.target.pos.map((x, i) => x - this.pos[i]);
+            let distance = Math.sqrt(delta.reduce((sum, x) => sum += x * x, 0));
+
+            // Shoot bullets
+            if(distance < 100. && Math.random() < 0.05){
+                let bullet = {
+                    pos: this.pos,
+                    velo: delta.map(x => 3. * x / distance),
+                    team: this.team,
+                };
+
+                game.bullets.push(bullet);
+
+                let circle = new Konva.Circle({
+                    x: bullet.pos[0] * WIDTH / game.xs,
+                    y: bullet.pos[1] * HEIGHT / game.ys,
+                    radius: 3,
+                    fill: this.team === false ? 'white' : 'purple',
+                    stroke: 'yellow',
+                    strokeWidth: 0.1
+                });
+                agentLayer.add(circle);
+                bullet.shape = circle;
+            }
+
+            if(5. < distance){
+                let newpos = this.pos.map((x, i) => x + 1 * delta[i] / distance /*Math.random() - 0.5*/);
+                if(1 === game.cellAt(newpos[0], newpos[1])){
+                    this.pos = newpos;
+                    this.shape.x( this.pos[0] * WIDTH / game.xs);
+                    this.shape.y( this.pos[1] * HEIGHT / game.ys);
+                }
+            }
+            this.targetLine.points([
+                this.pos[0] * WIDTH / game.xs,
+                this.pos[1] * HEIGHT / game.ys,
+                this.target.pos[0] * WIDTH / game.xs,
+                this.target.pos[1] * HEIGHT / game.ys,
+            ]);
+            this.targetLine.visible(true);
+        }
+        else{
+            this.targetLine.visible(false);
+        }
+    }
 }
 
 let minimapCanvas;
@@ -134,73 +204,7 @@ let game = new function(){
 
         // Animate agents
         for(let agent of this.agents){
-            // Forget about dead enemy
-            if(agent.target !== null && !agent.target.active)
-                agent.target = null;
-
-            if(agent.target === null){
-                let bestAgent = null;
-                let bestDistance = 1e6;
-                for(let a of this.agents){
-                    if(a !== agent && a.team !== agent.team){
-                        let distance = Math.sqrt(a.pos.map((x, i) => x - agent.pos[i]).reduce((sum, x) => sum += x * x, 0));
-                        if(distance < bestDistance){
-                            bestAgent = a;
-                            bestDistance = distance;
-                        }
-                    }
-                }
-
-                if(bestAgent !== null){
-                    agent.target = bestAgent;
-                }
-            }
-
-            if(agent.target !== null){
-                let delta = agent.target.pos.map((x, i) => x - agent.pos[i]);
-                let distance = Math.sqrt(delta.reduce((sum, x) => sum += x * x, 0));
-
-                // Shoot bullets
-                if(distance < 100. && Math.random() < 0.05){
-                    let bullet = {
-                        pos: agent.pos,
-                        velo: delta.map(x => 3. * x / distance),
-                        team: agent.team,
-                    };
-
-                    this.bullets.push(bullet);
-
-                    let circle = new Konva.Circle({
-                        x: bullet.pos[0] * WIDTH / this.xs,
-                        y: bullet.pos[1] * HEIGHT / this.ys,
-                        radius: 3,
-                        fill: agent.team === false ? 'white' : 'purple',
-                        stroke: 'yellow',
-                        strokeWidth: 0.1
-                    });
-                    agentLayer.add(circle);
-                    bullet.shape = circle;
-                }
-
-                if(5. < distance){
-                    let newpos = agent.pos.map((x, i) => x + 1 * delta[i] / distance /*Math.random() - 0.5*/);
-                    if(1 === this.cellAt(newpos[0], newpos[1])){
-                        agent.pos = newpos;
-                        agent.shape.x( agent.pos[0] * WIDTH / this.xs);
-                        agent.shape.y( agent.pos[1] * HEIGHT / this.ys);
-                    }
-                }
-                agent.targetLine.points([
-                    agent.pos[0] * WIDTH / this.xs,
-                    agent.pos[1] * HEIGHT / this.ys,
-                    agent.target.pos[0] * WIDTH / this.xs,
-                    agent.target.pos[1] * HEIGHT / this.ys,
-                ]);
-                agent.targetLine.visible(true);
-            }
-            else{
-                agent.targetLine.visible(false);
-            }
+            agent.update(this);
         }
         agentLayer.draw();
     }
