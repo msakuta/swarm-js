@@ -18,7 +18,7 @@
     "babel-cli": "^6.26.0",
     "babelify": "^10.0.0",
     "braces": "^3.0.2",
-    "browserify": "^16.3.0",
+    "browserify": "^16.5.1",
     "gulp": "^4.0.2",
     "gulp-exit": "0.0.2",
     "gulp-rename": "^1.4.0",
