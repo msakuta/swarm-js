@@ -54,8 +54,7 @@ let game = new function(){
         if(this.agents.length < 50){
             [0,1].map(team =>
                 [team, this.agents.reduce((accum, a) => accum + (a.team === team), 0)]
-            ).filter(([_, count]) => count < 20).forEach(([team, count]) => {
-                console.log(`filtered in [${team}]: ${count}`);
+            ).filter(([_, count]) => count < 20).forEach(([team, _]) => {
                 let pos;
                 for(let i = 0; i < 100; i++){
                     pos = [Math.random() * this.xs, Math.random() * this.ys];
@@ -81,7 +80,7 @@ let game = new function(){
                 agentLayer.add(circle);
                 agent.shape = circle;
             });
-    }
+        }
 
         // Animate bullets
         for(let i = 0; i < this.bullets.length;){
