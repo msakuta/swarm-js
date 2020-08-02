@@ -21,11 +21,14 @@ function compile(watch, cb) {
 
     function rebundle(compiler, useUglify) {
         let pre = compiler
-            .bundle()
-            .on('error', function (err) {
-                console.error(err);
-                this.emit('end');
-            })
+            .bundle();
+        if(watch)
+            pre = pre
+                .on('error', function (err) {
+                    console.error(err);
+                    this.emit('end');
+                });
+        pre = pre
             .pipe(source('build.js'))
             .pipe(duration( 'compiled ' ))
             .pipe(buffer())
