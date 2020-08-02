@@ -128,7 +128,7 @@ class Agent{
             }
             if(5. < distance || followPath){
                 let newpos = this.pos.map((x, i) => x + 1 * delta[i] / distance /*Math.random() - 0.5*/);
-                if(1 === game.cellAt(newpos[0], newpos[1])){
+                if(game.isPassableAt(newpos)){
                     this.pos = newpos;
                     this.shape.x( this.pos[0] * WIDTH / game.xs);
                     this.shape.y( this.pos[1] * HEIGHT / game.ys);
@@ -240,6 +240,11 @@ let game = new function(){
         if(x < 0 || this.xs <= x || y < 0 || this.ys <= y)
             return 0;
         return this.board[x + y * this.xs];
+    };
+
+    this.isPassableAt = function(pos){
+        const triangle = findTriangleAt(this, pos);
+        return 0 <= triangle;
     };
 
     this.boardAs2DArray = function(map){
