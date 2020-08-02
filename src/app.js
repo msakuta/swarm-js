@@ -38,6 +38,7 @@ function pointInTriangle(pt, v1, v2, v3){
     return !(has_neg && has_pos);
 }
 
+/// Returns triangle id (multiple of 3)
 function findTriangleAt(game, point){
     let triangles = game.triangulation.triangles;
     let points = game.trianglePoints;
@@ -258,13 +259,22 @@ let game = new function(){
         if(this.agents.length < 50){
             [0,1].map(team =>
                 [team, this.agents.reduce((accum, a) => accum + (a.team === team), 0)]
-            ).filter(([_, count]) => count < 20).forEach(([team, _]) => {
+            ).filter(([_, count]) => count < 10).forEach(([team, _]) => {
                 let pos;
+                let ok = false;
                 for(let i = 0; i < 100; i++){
                     pos = [Math.random() * this.xs, Math.random() * this.ys];
-                    if(1 === this.cellAt(pos[0], pos[1]))
-                        break;
+                    if(1 !== this.cellAt(pos[0], pos[1]))
+                        continue;
+                    const triangle = findTriangleAt(this, pos);
+                    if(triangle < 0 || !this.trianglesPassable[triangle / 3])
+                        continue;
+                    ok = true;
+                    break;
                 }
+                // If we failed to find a position that is passable for 100 times, give up and try next time.
+                if(!ok)
+                    return;
                 let agent = new Agent(pos, team);
                 this.agents.push(agent);
 
@@ -500,7 +510,7 @@ window.addEventListener('load', () => {
             allPoints[triangles[i]],
             allPoints[triangles[i + 1]],
             allPoints[triangles[i + 2]]);
-        game.trianglesPassable.push(game.cellAt(thisCenter.x, thisCenter.y));
+        // game.trianglesPassable.push(game.cellAt(thisCenter.x, thisCenter.y));
         for(let j = 0; j < 3; j++){
             if(halfedges[i + j] < 0)
                 continue;
@@ -524,6 +534,35 @@ window.addEventListener('load', () => {
             triangleLayer.add(triangleLine);
         }
     }
+
+    (function checkPassableTriangles(){
+        game.trianglesPassable = new Array(Math.floor(triangles.length / 3)).fill(0);
+        const centerTriangle = findTriangleAt(game, [game.xs / 2, game.ys / 2]);
+        if(0 <= centerTriangle){
+            let connectedTriangles = {};
+            connectedTriangles[centerTriangle] = true;
+            let openSet = [centerTriangle];
+            while(0 < openSet.length){
+                let thisTriangle = openSet.pop();
+                let thisCenter = centerOfTriangle(
+                    allPoints[triangles[thisTriangle]],
+                    allPoints[triangles[thisTriangle + 1]],
+                    allPoints[triangles[thisTriangle + 2]]);
+                if(!game.cellAt(thisCenter.x, thisCenter.y))
+                    continue;
+                game.trianglesPassable[Math.floor(thisTriangle / 3)] = 1;
+                for(let j = 0; j < 3; j++){
+                    if(halfedges[thisTriangle + j] < 0)
+                        continue;
+                    let theOtherTriangle = Math.floor(halfedges[thisTriangle + j] / 3) * 3;
+                    if(!connectedTriangles.hasOwnProperty(theOtherTriangle)){
+                        connectedTriangles[theOtherTriangle] = true;
+                        openSet.push(theOtherTriangle);
+                    }
+                }
+            }
+        }
+    })();
 
     // Draw triangles below borders
     stage.add(triangleLayer);
