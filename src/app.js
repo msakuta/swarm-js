@@ -92,7 +92,8 @@ class Agent{
         }
 
         if(this.target !== null){
-            let delta = this.target.pos.map((x, i) => x - this.pos[i]);
+            let targetPos = this.target.pos;
+            let delta = targetPos.map((x, i) => x - this.pos[i]);
             let distance = Math.sqrt(delta.reduce((sum, x) => sum += x * x, 0));
 
             // Shoot bullets
@@ -122,12 +123,15 @@ class Agent{
             if(this.path && 0 < this.path.length){
                 const center = centerOfTriangleObj(game.triangulation, game.trianglePoints,
                     this.path[this.path.length-1]);
-                ["x", "y"].forEach((x, i) => delta[i] = center[x] - this.pos[i]);
+                targetPos = [center.x, center.y];
+                delta = targetPos.map((x, i) => x - this.pos[i]);
                 distance = Math.sqrt(delta.reduce((sum, x) => sum += x * x, 0));
                 followPath = true;
             }
             if(5. < distance || followPath){
-                let newpos = this.pos.map((x, i) => x + 1 * delta[i] / distance /*Math.random() - 0.5*/);
+                const speed = 1.;
+                let newpos = distance <= speed ? targetPos :
+                    this.pos.map((x, i) => x + speed * delta[i] / distance /*Math.random() - 0.5*/);
                 if(game.isPassableAt(newpos)){
                     this.pos = newpos;
                     this.shape.x( this.pos[0] * WIDTH / game.xs);
