@@ -227,7 +227,7 @@ let game = new function(){
             let dx = xi - this.xs / 2;
             let dy = yi - this.ys / 2;
             this.board[xi + yi * this.xs] = 
-                0. + (Math.max(0, perlin_noise_pixel(xi, yi, 4) - Math.sqrt(dx * dx + dy * dy) / this.xs) > 0.1);
+                0. + (Math.max(0, perlin_noise_pixel(xi, yi, 3) - 0.5 * Math.sqrt(dx * dx + dy * dy) / this.xs) > 0.3);
         }
     }
     this.agents = [];
