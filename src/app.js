@@ -4,7 +4,6 @@ const { perlin_noise_pixel } = require('./perlinNoise');
 const MarchingSquaresJS = require('marchingsquares');
 const simplify = require('simplify-js');
 const Delaunator = require('delaunator');
-const { SceneCanvas } = require('konva/types/Canvas');
 
 
 const WIDTH = 500;
@@ -123,10 +122,10 @@ class Agent{
                 const center = centerOfTriangleObj(game.triangulation, game.trianglePoints,
                     this.path[this.path.length-1]);
                 ["x", "y"].forEach((x, i) => delta[i] = center[x] - this.pos[i]);
-                distance = Math.sqrt(delta.reduce((sum, x) => sum += x * x, 0)) / 10.;
+                distance = Math.sqrt(delta.reduce((sum, x) => sum += x * x, 0));
                 followPath = true;
             }
-            if(5. < distance){
+            if(5. < distance || followPath){
                 let newpos = this.pos.map((x, i) => x + 1 * delta[i] / distance /*Math.random() - 0.5*/);
                 if(1 === game.cellAt(newpos[0], newpos[1])){
                     this.pos = newpos;
@@ -439,21 +438,9 @@ window.addEventListener('load', () => {
         height: HEIGHT
     });
 
-    var imageObj = new Image();
-    imageObj.onload = function() {
-    var image = new Konva.Image({
-        x: 200,
-        y: 50,
-        image: imageObj,
-        width: 100,
-        height: 100
-    });
-    };
-    imageObj.src = 'try100.jpg';
 
     backgroundLayer = new Konva.Layer();
     stage.add(backgroundLayer);
-    stage.add(image);
 
     borderLayer = new Konva.Layer();
     triangleLayer = new Konva.Layer();
