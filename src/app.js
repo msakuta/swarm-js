@@ -421,6 +421,7 @@ function genImage(){
 let agentLayer;
 let borderLayer;
 let triangleLayer;
+let connectionLayer;
 
 function toggleTriangulation(){
     let isVisible = $('#triangulationVisible').get()[0].checked;
@@ -430,8 +431,15 @@ function toggleTriangulation(){
         triangleLayer.visible(isVisible);
 }
 
+function toggleConnection(){
+    let isVisible = $('#connectionVisible').get()[0].checked;
+    if(connectionLayer)
+        connectionLayer.visible(isVisible);
+}
+
 window.addEventListener('load', () => {
     $('#triangulationVisible').on('change', toggleTriangulation);
+    $('#connectionVisible').on('change', toggleConnection);
 
     // Add hidden canvas dynamically to draw map image on,
     // because we want to have variable size.
@@ -463,6 +471,7 @@ window.addEventListener('load', () => {
 
     borderLayer = new Konva.Layer();
     triangleLayer = new Konva.Layer();
+    connectionLayer = new Konva.Layer();
 
     let lines = MarchingSquaresJS.isoLines(game.boardAs2DArray(x => 1 - x), 0.5);
     let allPoints = [];
@@ -519,12 +528,11 @@ window.addEventListener('load', () => {
             allPoints[triangles[i]],
             allPoints[triangles[i + 1]],
             allPoints[triangles[i + 2]]);
-        // game.trianglesPassable.push(game.cellAt(thisCenter.x, thisCenter.y));
+
         for(let j = 0; j < 3; j++){
             if(halfedges[i + j] < 0)
                 continue;
             let theOtherTriangle = Math.floor(halfedges[i + j] / 3) * 3;
-            // console.log(`theOtherTriangle: ${theOtherTriangle}, halfedges ${halfedges[i + j]}, idx ${i + j}`);
             let theOtherCenter = centerOfTriangle(
                 allPoints[triangles[theOtherTriangle]],
                 allPoints[triangles[theOtherTriangle + 1]],
@@ -540,7 +548,7 @@ window.addEventListener('load', () => {
                 strokeWidth: 0.2,
                 dash: [5, 5],
             });
-            triangleLayer.add(triangleLine);
+            connectionLayer.add(triangleLine);
         }
     }
 
@@ -574,6 +582,7 @@ window.addEventListener('load', () => {
     })();
 
     // Draw triangles below borders
+    stage.add(connectionLayer);
     stage.add(triangleLayer);
     stage.add(borderLayer);
 
