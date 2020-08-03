@@ -141,10 +141,10 @@ class Agent{
             else if(followPath){
                 this.path.pop();
             }
-            this.targetLine.visible(true);
+            this.pathLine.visible(true);
         }
         else{
-            this.targetLine.visible(false);
+            this.pathLine.visible(false);
         }
     }
 
@@ -153,7 +153,7 @@ class Agent{
             const thisTriangle = findTriangleAt(game, this.pos);
             const targetTriangle = findTriangleAt(game, this.target.pos);
             if(thisTriangle === targetTriangle || thisTriangle < 0 || targetTriangle < 0){
-                this.targetLine.points([
+                this.pathLine.points([
                     this.pos[0] * WIDTH / game.xs,
                     this.pos[1] * HEIGHT / game.ys,
                     this.target.pos[0] * WIDTH / game.xs,
@@ -209,7 +209,7 @@ class Agent{
                     this.pos[0] * WIDTH / game.xs,
                     this.pos[1] * HEIGHT / game.ys,
                 );
-                this.targetLine.points(plotPath);
+                this.pathLine.points(plotPath);
             }
             else{
                 this.unreachables[this.target.id] = true;
@@ -298,7 +298,7 @@ let game = new function(){
                 agentLayer.add(circle);
                 agent.shape = circle;
 
-                let targetLine = new Konva.Line({
+                let pathLine = new Konva.Line({
                     points: [
                         agent.pos[0] * WIDTH / this.xs,
                         agent.pos[1] * HEIGHT / this.ys
@@ -308,21 +308,8 @@ let game = new function(){
                     dash: [5, 5],
                     visible: false,
                 });
-                agentLayer.add(targetLine);
-                agent.targetLine = targetLine;
-
-                let triangleLine = new Konva.Line({
-                    points: [
-                        agent.pos[0] * WIDTH / this.xs,
-                        agent.pos[1] * HEIGHT / this.ys
-                    ],
-                    stroke: 'white',
-                    strokeWidth: 0.5,
-                    dash: [5, 5],
-                    visible: false,
-                });
-                agentLayer.add(triangleLine);
-                agent.triangleLine = triangleLine;
+                pathLayer.add(pathLine);
+                agent.pathLine = pathLine;
             });
         }
 
@@ -338,9 +325,8 @@ let game = new function(){
                         if(distance < 5.){
                             agent.active = false;
                             this.agents.splice(j, 1);
-                            agent.shape.remove();
-                            agent.targetLine.remove();
-                            agent.triangleLine.remove();
+                            agent.shape.destroy();
+                            agent.pathLine.destroy();
                             return true;
                         }
                     }
@@ -364,7 +350,7 @@ let game = new function(){
         for(let agent of this.agents){
             agent.update(this);
         }
-        agentLayer.draw();
+        foregroundLayer.draw();
     }
 }();
 
@@ -399,6 +385,7 @@ function paintMinimap(y0,ys){
 }
 
 let backgroundLayer;
+let foregroundLayer;
 
 function genImage(){
     var image = new Image();
@@ -412,6 +399,7 @@ function genImage(){
             height: HEIGHT
         });
         backgroundLayer.add(minimap);
+        minimap.moveToBottom();
 
         // draw the image
         backgroundLayer.draw();
@@ -422,6 +410,7 @@ let agentLayer;
 let borderLayer;
 let triangleLayer;
 let connectionLayer;
+let pathLayer;
 
 function toggleTriangulation(){
     let isVisible = $('#triangulationVisible').get()[0].checked;
@@ -429,17 +418,25 @@ function toggleTriangulation(){
         borderLayer.visible(isVisible);
     if(triangleLayer)
         triangleLayer.visible(isVisible);
+    backgroundLayer.draw();
 }
 
 function toggleConnection(){
     let isVisible = $('#connectionVisible').get()[0].checked;
     if(connectionLayer)
         connectionLayer.visible(isVisible);
+    backgroundLayer.draw();
 }
 
 window.addEventListener('load', () => {
     $('#triangulationVisible').on('change', toggleTriangulation);
     $('#connectionVisible').on('change', toggleConnection);
+    $('#pathVisible').on('change', () => {
+        let isVisible = $('#pathVisible').get()[0].checked;
+        if(pathLayer)
+            pathLayer.visible(isVisible);
+        // No need to explicitly redraw since the foreground is always redrawn
+    });
 
     // Add hidden canvas dynamically to draw map image on,
     // because we want to have variable size.
@@ -466,12 +463,19 @@ window.addEventListener('load', () => {
     });
 
 
+    // Draw triangles below borders
     backgroundLayer = new Konva.Layer();
+    triangleLayer = new Konva.Group();
+    backgroundLayer.add(triangleLayer);
+    borderLayer = new Konva.Group();
+    backgroundLayer.add(borderLayer);
+    connectionLayer = new Konva.Group();
+    backgroundLayer.add(connectionLayer);
     stage.add(backgroundLayer);
 
-    borderLayer = new Konva.Layer();
-    triangleLayer = new Konva.Layer();
-    connectionLayer = new Konva.Layer();
+    foregroundLayer = new Konva.Layer();
+    pathLayer = new Konva.Group();
+    foregroundLayer.add(pathLayer);
 
     let lines = MarchingSquaresJS.isoLines(game.boardAs2DArray(x => 1 - x), 0.5);
     let allPoints = [];
@@ -581,17 +585,10 @@ window.addEventListener('load', () => {
         }
     })();
 
-    // Draw triangles below borders
-    stage.add(connectionLayer);
-    stage.add(triangleLayer);
-    stage.add(borderLayer);
-
-    agentLayer = new Konva.Layer();
-    stage.add(agentLayer);
-
-    // draw the image
-    borderLayer.draw();
-    triangleLayer.draw();
+    agentLayer = new Konva.Group();
+    foregroundLayer.add(agentLayer);
+    stage.add(foregroundLayer);
+    foregroundLayer.moveToTop();
 
     genImage();
 
