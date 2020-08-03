@@ -53,6 +53,61 @@ function findTriangleAt(game, point){
     return -1;
 }
 
+class BehaviorNode{
+    constructor(parent){
+        this.parent = parent;
+    }
+    tick(game, agent){}
+}
+
+class SequenceNode extends BehaviorNode{
+    constructor(parent, children){
+        super(parent);
+        this.children = children;
+    }
+    tick(game, agent){
+        for(let child of this.children)
+            child.tick(game, agent);
+    }
+}
+
+class FindPathNode extends BehaviorNode{
+    constructor(parent){
+        super(parent);
+    }
+    tick(game, agent){
+        agent.findPath(game);
+    }
+}
+
+class MoveNode extends BehaviorNode{
+    constructor(parent){
+        super(parent);
+    }
+    tick(game, agent){
+        agent.moveTo([50, 50]);
+    }
+}
+
+class FindEnemyNode extends BehaviorNode{
+    constructor(parent){
+        super(parent);
+    }
+    tick(game, agent){
+        agent.findEnemy(game);
+    }
+}
+
+class BehaviorTree{
+    constructor(rootNode){
+        this.rootNode = rootNode;
+    }
+    tick(game, agent){
+        if(this.rootNode)
+            this.rootNode.tick(game, agent);
+    }
+}
+
 let id_iter = 0;
 
 class Agent{
@@ -60,35 +115,61 @@ class Agent{
     active = true;
     path = null;
     unreachables = {};
+    behaviorTree = new BehaviorTree();
     constructor(pos, team){
         this.id = id_iter++;
         this.pos = pos;
         this.team = team;
+        if(this.id % 2 === 0)
+            this.behaviorTree = new BehaviorTree(new SequenceNode(null, [new FindEnemyNode(), new MoveNode()]));
+    }
+
+    /// targetPos needs to be an array of 2 elements
+    moveTo(targetPos){
+        const speed = 1.;
+        let delta = targetPos.map((x, i) => x - this.pos[i]);
+        let distance = Math.sqrt(delta.reduce((sum, x) => sum += x * x, 0));
+        let newpos = distance <= speed ? targetPos :
+            this.pos.map((x, i) => x + speed * delta[i] / distance /*Math.random() - 0.5*/);
+        if(game.isPassableAt(newpos)){
+            this.pos = newpos;
+            this.shape.x( this.pos[0] * WIDTH / game.xs);
+            this.shape.y( this.pos[1] * HEIGHT / game.ys);
+        }
+    }
+
+    findEnemy(game){
+        let bestAgent = null;
+        let bestDistance = 1e6;
+        for(let a of game.agents){
+            if(a.id in this.unreachables)
+                continue;
+            if(a !== this && a.team !== this.team){
+                let distance = Math.sqrt(a.pos.map((x, i) => x - this.pos[i]).reduce((sum, x) => sum += x * x, 0));
+                if(distance < bestDistance){
+                    bestAgent = a;
+                    bestDistance = distance;
+                }
+            }
+        }
+
+        if(bestAgent !== null){
+            this.target = bestAgent;
+        }
     }
 
     update(game){
+        if(this.behaviorTree.rootNode){
+            this.behaviorTree.tick(game, this);
+            return;
+        }
+
         // Forget about dead enemy
         if(this.target !== null && !this.target.active)
             this.target = null;
 
         if(this.target === null){
-            let bestAgent = null;
-            let bestDistance = 1e6;
-            for(let a of game.agents){
-                if(a.id in this.unreachables)
-                    continue;
-                if(a !== this && a.team !== this.team){
-                    let distance = Math.sqrt(a.pos.map((x, i) => x - this.pos[i]).reduce((sum, x) => sum += x * x, 0));
-                    if(distance < bestDistance){
-                        bestAgent = a;
-                        bestDistance = distance;
-                    }
-                }
-            }
-
-            if(bestAgent !== null){
-                this.target = bestAgent;
-            }
+            this.findEnemy(game);
         }
 
         if(this.target !== null){
@@ -248,7 +329,7 @@ let game = new function(){
 
     this.isPassableAt = function(pos){
         const triangle = findTriangleAt(this, pos);
-        return 0 <= triangle;
+        return 0 <= triangle && this.trianglesPassable[triangle / 3];
     };
 
     this.boardAs2DArray = function(map){
