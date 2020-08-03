@@ -4,7 +4,7 @@ const { perlin_noise_pixel } = require('./perlinNoise');
 const MarchingSquaresJS = require('marchingsquares');
 const simplify = require('simplify-js');
 const Delaunator = require('delaunator');
-const BT = require('./behaviorTree');
+import * as BT from "./behaviorTree";
 
 
 const WIDTH = 500;
