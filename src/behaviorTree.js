@@ -1,3 +1,4 @@
+import { centerOfTriangleObj } from "./triangleUtils";
 
 // For now, it's an ugly global table.
 let blackBoard = {};
@@ -23,20 +24,43 @@ export class SequenceNode extends BehaviorNode{
 }
 
 export class FindPathNode extends BehaviorNode{
-    constructor(){
+    constructor(target){
         super();
+        this.inputPort.push(target);
     }
     tick(game, agent){
-        agent.findPath(game);
+        agent.findPath(game, blackBoard[this.inputPort[0]]);
+        return true;
+    }
+}
+
+export class GetNextNodePositionNode extends BehaviorNode{
+    constructor(position){
+        super();
+        this.outputPort.push(position);
+    }
+    tick(game, agent){
+        if(!agent.path || agent.path.length === 0)
+            return false;
+        const center = centerOfTriangleObj(game.triangulation, game.trianglePoints,
+            agent.path[agent.path.length-1]);
+        blackBoard[this.outputPort[0]] = [center.x, center.y];
+        return true;
     }
 }
 
 export class MoveNode extends BehaviorNode{
-    constructor(){
+    constructor(position){
         super();
+        this.inputPort.push(position);
     }
     tick(game, agent){
-        agent.moveTo([50, 50]);
+        if(this.inputPort[0]){
+            agent.moveTo(blackBoard[this.inputPort[0]]);
+            return true;
+        }
+        else
+            return false;
     }
 }
 
@@ -72,6 +96,17 @@ export class FindTargetNode extends BehaviorNode{
     }
     tick(game, agent){
         agent.findEnemy(game);
+    }
+}
+
+export class GetTargetNode extends BehaviorNode{
+    constructor(target){
+        super();
+        this.outputPort.push(target);
+    }
+    tick(game, agent){
+        blackBoard[this.outputPort[0]] = agent.target;
+        return true;
     }
 }
 

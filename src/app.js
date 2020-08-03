@@ -5,54 +5,12 @@ const MarchingSquaresJS = require('marchingsquares');
 const simplify = require('simplify-js');
 const Delaunator = require('delaunator');
 import * as BT from "./behaviorTree";
+import { centerOfTriangle, centerOfTriangleObj, findTriangleAt } from "./triangleUtils";
 
 
 const WIDTH = 500;
 const HEIGHT = 500;
 const FRAMERATE = 50;
-
-function centerOfTriangle(v1, v2, v3){
-    let ret = {};
-    ["x", "y"].forEach(x => ret[x] = (v1[x] + v2[x] + v3[x]) / 3.);
-    return ret;
-}
-
-function centerOfTriangleObj(triangulation, points, idx){
-    return centerOfTriangle(
-        points[triangulation.triangles[idx]],
-        points[triangulation.triangles[idx+1]],
-        points[triangulation.triangles[idx+2]]);
-}
-
-function sign(p1, p2, p3){
-    return (p1[0] - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1[1] - p3.y);
-}
-
-function pointInTriangle(pt, v1, v2, v3){
-    let d1 = sign(pt, v1, v2);
-    let d2 = sign(pt, v2, v3);
-    let d3 = sign(pt, v3, v1);
-
-    let has_neg = (d1 < 0) || (d2 < 0) || (d3 < 0);
-    let has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
-
-    return !(has_neg && has_pos);
-}
-
-/// Returns triangle id (multiple of 3)
-function findTriangleAt(game, point){
-    let triangles = game.triangulation.triangles;
-    let points = game.trianglePoints;
-    for(let i = 0; i < triangles.length; i += 3){
-        let [v1, v2, v3] = [points[triangles[i]],
-            points[triangles[i + 1]],
-            points[triangles[i + 2]]];
-        if(pointInTriangle(point, v1, v2, v3)){
-            return i;
-        }
-    }
-    return -1;
-}
 
 
 let id_iter = 0;
@@ -68,16 +26,20 @@ class Agent{
         this.pos = pos;
         this.team = team;
         this.cooldown = 5;
-        if(this.id % 2 === 0)
+        if(this.id % 1 === 0)
             this.behaviorTree = new BT.BehaviorTree(
                 new BT.SequenceNode([
                     new BT.FindTargetNode(),
+                    new BT.IfNode(new BT.FindPathNode(),
+                        new BT.SequenceNode([
+                            new BT.GetNextNodePositionNode("nextNodePos"),
+                            new BT.MoveNode("nextNodePos"),
+                        ])),
                     new BT.IfNode(new BT.IsTargetFoundNode(),
                         new BT.SequenceNode([
                             new BT.GetTargetPositionNode("enemyPos"),
                             new BT.ShootBulletNode("enemyPos"),
                         ])),
-                    new BT.MoveNode()
                 ]));
     }
 
