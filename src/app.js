@@ -10,12 +10,212 @@ const WIDTH = 500;
 const HEIGHT = 500;
 const FRAMERATE = 50;
 
+function centerOfTriangle(v1, v2, v3){
+    let ret = {};
+    ["x", "y"].forEach(x => ret[x] = (v1[x] + v2[x] + v3[x]) / 3.);
+    return ret;
+}
+
+function centerOfTriangleObj(triangulation, points, idx){
+    return centerOfTriangle(
+        points[triangulation.triangles[idx]],
+        points[triangulation.triangles[idx+1]],
+        points[triangulation.triangles[idx+2]]);
+}
+
+function sign(p1, p2, p3){
+    return (p1[0] - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1[1] - p3.y);
+}
+
+function pointInTriangle(pt, v1, v2, v3){
+    let d1 = sign(pt, v1, v2);
+    let d2 = sign(pt, v2, v3);
+    let d3 = sign(pt, v3, v1);
+
+    let has_neg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+    let has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+
+    return !(has_neg && has_pos);
+}
+
+/// Returns triangle id (multiple of 3)
+function findTriangleAt(game, point){
+    let triangles = game.triangulation.triangles;
+    let points = game.trianglePoints;
+    for(let i = 0; i < triangles.length; i += 3){
+        let [v1, v2, v3] = [points[triangles[i]],
+            points[triangles[i + 1]],
+            points[triangles[i + 2]]];
+        if(pointInTriangle(point, v1, v2, v3)){
+            return i;
+        }
+    }
+    return -1;
+}
+
+let id_iter = 0;
+
 class Agent{
     target = null;
     active = true;
+    path = null;
+    unreachables = {};
     constructor(pos, team){
+        this.id = id_iter++;
         this.pos = pos;
         this.team = team;
+    }
+
+    update(game){
+        // Forget about dead enemy
+        if(this.target !== null && !this.target.active)
+            this.target = null;
+
+        if(this.target === null){
+            let bestAgent = null;
+            let bestDistance = 1e6;
+            for(let a of game.agents){
+                if(a.id in this.unreachables)
+                    continue;
+                if(a !== this && a.team !== this.team){
+                    let distance = Math.sqrt(a.pos.map((x, i) => x - this.pos[i]).reduce((sum, x) => sum += x * x, 0));
+                    if(distance < bestDistance){
+                        bestAgent = a;
+                        bestDistance = distance;
+                    }
+                }
+            }
+
+            if(bestAgent !== null){
+                this.target = bestAgent;
+            }
+        }
+
+        if(this.target !== null){
+            let targetPos = this.target.pos;
+            let delta = targetPos.map((x, i) => x - this.pos[i]);
+            let distance = Math.sqrt(delta.reduce((sum, x) => sum += x * x, 0));
+
+            // Shoot bullets
+            if(distance < 100. && Math.random() < 0.05){
+                let bullet = {
+                    pos: this.pos,
+                    velo: delta.map(x => 3. * x / distance),
+                    team: this.team,
+                };
+
+                game.bullets.push(bullet);
+
+                let circle = new Konva.Circle({
+                    x: bullet.pos[0] * WIDTH / game.xs,
+                    y: bullet.pos[1] * HEIGHT / game.ys,
+                    radius: 3,
+                    fill: this.team === false ? 'white' : 'purple',
+                    stroke: 'yellow',
+                    strokeWidth: 0.1
+                });
+                agentLayer.add(circle);
+                bullet.shape = circle;
+            }
+
+            this.findPath(game);
+            let followPath = false;
+            if(this.path && 0 < this.path.length){
+                const center = centerOfTriangleObj(game.triangulation, game.trianglePoints,
+                    this.path[this.path.length-1]);
+                targetPos = [center.x, center.y];
+                delta = targetPos.map((x, i) => x - this.pos[i]);
+                distance = Math.sqrt(delta.reduce((sum, x) => sum += x * x, 0));
+                followPath = true;
+            }
+            if(5. < distance || followPath){
+                const speed = 1.;
+                let newpos = distance <= speed ? targetPos :
+                    this.pos.map((x, i) => x + speed * delta[i] / distance /*Math.random() - 0.5*/);
+                if(game.isPassableAt(newpos)){
+                    this.pos = newpos;
+                    this.shape.x( this.pos[0] * WIDTH / game.xs);
+                    this.shape.y( this.pos[1] * HEIGHT / game.ys);
+                }
+            }
+            else if(followPath){
+                this.path.pop();
+            }
+            this.pathLine.visible(true);
+        }
+        else{
+            this.pathLine.visible(false);
+        }
+    }
+
+    findPath(game){
+        if(this.target){
+            const thisTriangle = findTriangleAt(game, this.pos);
+            const targetTriangle = findTriangleAt(game, this.target.pos);
+            if(thisTriangle === targetTriangle || thisTriangle < 0 || targetTriangle < 0){
+                this.pathLine.points([
+                    this.pos[0] * WIDTH / game.xs,
+                    this.pos[1] * HEIGHT / game.ys,
+                    this.target.pos[0] * WIDTH / game.xs,
+                    this.target.pos[1] * HEIGHT / game.ys,
+                ]);
+                return;
+            }
+            let costmap = new Array(Math.floor(game.triangulation.triangles.length / 3)).fill(Infinity);
+            let cameFrom = new Array(Math.floor(game.triangulation.triangles.length / 3)).fill(-1);
+            costmap[Math.floor(thisTriangle / 3)] = 0.;
+            let openSet = [];
+            openSet.push(thisTriangle);
+            topLabel: while(0 < openSet.length){
+                let top = openSet[0];
+                openSet.splice(0, 1);
+                const centerTop = centerOfTriangleObj(game.triangulation, game.trianglePoints, top);
+                const topCost = costmap[Math.floor(top / 3)];
+                for(let j = 0; j < 3; j++){
+                    let nextTriangle = game.triangulation.halfedges[top + j];
+                    if(nextTriangle < 0 || !game.trianglesPassable[Math.floor(nextTriangle / 3)])
+                        continue;
+                    if(isFinite(costmap[Math.floor(nextTriangle / 3)]) && costmap[Math.floor(nextTriangle / 3)] < topCost)
+                        continue;
+                    const centerNext = centerOfTriangleObj(game.triangulation, game.trianglePoints, Math.floor(nextTriangle / 3) * 3);
+                    const delta = ["x", "y"].map(x => (centerTop[x] - centerNext[x]) * (centerTop[x] - centerNext[x]));
+                    const dist = Math.sqrt(delta[0] + delta[1]);
+                    if(costmap[Math.floor(nextTriangle / 3)] < topCost + dist)
+                        continue;
+                    costmap[Math.floor(nextTriangle / 3)] = topCost + dist;
+                    cameFrom[Math.floor(nextTriangle / 3)] = top;
+                    openSet.push(Math.floor(nextTriangle / 3) * 3);
+                    if(Math.floor(nextTriangle / 3) * 3 === targetTriangle)
+                        break topLabel;
+                }
+            }
+            if(0 <= cameFrom[Math.floor(targetTriangle / 3)]){
+                this.path = [];
+                let plotPath = [
+                    this.target.pos[0] * WIDTH / game.xs,
+                    this.target.pos[1] * HEIGHT / game.ys,
+                ];
+                for(let traverser = targetTriangle; traverser != thisTriangle && 0 < traverser;
+                    traverser = cameFrom[Math.floor(traverser / 3)])
+                {
+                    const center = centerOfTriangleObj(game.triangulation, game.trianglePoints, traverser);
+                    plotPath.push(
+                        center.x * WIDTH / game.xs,
+                        center.y * HEIGHT / game.ys,
+                    );
+                    this.path.push(traverser);
+                }
+                plotPath.push(
+                    this.pos[0] * WIDTH / game.xs,
+                    this.pos[1] * HEIGHT / game.ys,
+                );
+                this.pathLine.points(plotPath);
+            }
+            else{
+                this.unreachables[this.target.id] = true;
+                this.target = null;
+            }
+        }
     }
 }
 
@@ -24,15 +224,15 @@ let minimap;
 let stage;
 let rootLayer;
 let game = new function(){
-    this.xs = 150;
-    this.ys = 150;
+    this.xs = 100;
+    this.ys = 100;
     this.board = new Array(this.xs * this.ys);
     for(let xi = 0; xi < this.xs; xi++){
         for(let yi = 0; yi < this.ys; yi++){
             let dx = xi - this.xs / 2;
             let dy = yi - this.ys / 2;
             this.board[xi + yi * this.xs] = 
-                0. + (Math.max(0, perlin_noise_pixel(xi, yi, 4) - Math.sqrt(dx * dx + dy * dy) / this.xs) > 0.1);
+                0. + (Math.max(0, perlin_noise_pixel(xi, yi, 3) - 0.5 * Math.sqrt(dx * dx + dy * dy) / this.xs) > 0.3);
         }
     }
     this.agents = [];
@@ -44,6 +244,11 @@ let game = new function(){
         if(x < 0 || this.xs <= x || y < 0 || this.ys <= y)
             return 0;
         return this.board[x + y * this.xs];
+    };
+
+    this.isPassableAt = function(pos){
+        const triangle = findTriangleAt(this, pos);
+        return 0 <= triangle;
     };
 
     this.boardAs2DArray = function(map){
@@ -63,13 +268,22 @@ let game = new function(){
         if(this.agents.length < 50){
             [0,1].map(team =>
                 [team, this.agents.reduce((accum, a) => accum + (a.team === team), 0)]
-            ).filter(([_, count]) => count < 20).forEach(([team, _]) => {
+            ).filter(([_, count]) => count < 10).forEach(([team, _]) => {
                 let pos;
+                let ok = false;
                 for(let i = 0; i < 100; i++){
                     pos = [Math.random() * this.xs, Math.random() * this.ys];
-                    if(1 === this.cellAt(pos[0], pos[1]))
-                        break;
+                    if(1 !== this.cellAt(pos[0], pos[1]))
+                        continue;
+                    const triangle = findTriangleAt(this, pos);
+                    if(triangle < 0 || !this.trianglesPassable[triangle / 3])
+                        continue;
+                    ok = true;
+                    break;
                 }
+                // If we failed to find a position that is passable for 100 times, give up and try next time.
+                if(!ok)
+                    return;
                 let agent = new Agent(pos, team);
                 this.agents.push(agent);
 
@@ -84,7 +298,7 @@ let game = new function(){
                 agentLayer.add(circle);
                 agent.shape = circle;
 
-                let targetLine = new Konva.Line({
+                let pathLine = new Konva.Line({
                     points: [
                         agent.pos[0] * WIDTH / this.xs,
                         agent.pos[1] * HEIGHT / this.ys
@@ -94,8 +308,8 @@ let game = new function(){
                     dash: [5, 5],
                     visible: false,
                 });
-                agentLayer.add(targetLine);
-                agent.targetLine = targetLine;
+                pathLayer.add(pathLine);
+                agent.pathLine = pathLine;
             });
         }
 
@@ -111,8 +325,8 @@ let game = new function(){
                         if(distance < 5.){
                             agent.active = false;
                             this.agents.splice(j, 1);
-                            agent.shape.remove();
-                            agent.targetLine.remove();
+                            agent.shape.destroy();
+                            agent.pathLine.destroy();
                             return true;
                         }
                     }
@@ -134,75 +348,9 @@ let game = new function(){
 
         // Animate agents
         for(let agent of this.agents){
-            // Forget about dead enemy
-            if(agent.target !== null && !agent.target.active)
-                agent.target = null;
-
-            if(agent.target === null){
-                let bestAgent = null;
-                let bestDistance = 1e6;
-                for(let a of this.agents){
-                    if(a !== agent && a.team !== agent.team){
-                        let distance = Math.sqrt(a.pos.map((x, i) => x - agent.pos[i]).reduce((sum, x) => sum += x * x, 0));
-                        if(distance < bestDistance){
-                            bestAgent = a;
-                            bestDistance = distance;
-                        }
-                    }
-                }
-
-                if(bestAgent !== null){
-                    agent.target = bestAgent;
-                }
-            }
-
-            if(agent.target !== null){
-                let delta = agent.target.pos.map((x, i) => x - agent.pos[i]);
-                let distance = Math.sqrt(delta.reduce((sum, x) => sum += x * x, 0));
-
-                // Shoot bullets
-                if(distance < 100. && Math.random() < 0.05){
-                    let bullet = {
-                        pos: agent.pos,
-                        velo: delta.map(x => 3. * x / distance),
-                        team: agent.team,
-                    };
-
-                    this.bullets.push(bullet);
-
-                    let circle = new Konva.Circle({
-                        x: bullet.pos[0] * WIDTH / this.xs,
-                        y: bullet.pos[1] * HEIGHT / this.ys,
-                        radius: 3,
-                        fill: agent.team === false ? 'white' : 'purple',
-                        stroke: 'yellow',
-                        strokeWidth: 0.1
-                    });
-                    agentLayer.add(circle);
-                    bullet.shape = circle;
-                }
-
-                if(5. < distance){
-                    let newpos = agent.pos.map((x, i) => x + 1 * delta[i] / distance /*Math.random() - 0.5*/);
-                    if(1 === this.cellAt(newpos[0], newpos[1])){
-                        agent.pos = newpos;
-                        agent.shape.x( agent.pos[0] * WIDTH / this.xs);
-                        agent.shape.y( agent.pos[1] * HEIGHT / this.ys);
-                    }
-                }
-                agent.targetLine.points([
-                    agent.pos[0] * WIDTH / this.xs,
-                    agent.pos[1] * HEIGHT / this.ys,
-                    agent.target.pos[0] * WIDTH / this.xs,
-                    agent.target.pos[1] * HEIGHT / this.ys,
-                ]);
-                agent.targetLine.visible(true);
-            }
-            else{
-                agent.targetLine.visible(false);
-            }
+            agent.update(this);
         }
-        agentLayer.draw();
+        foregroundLayer.draw();
     }
 }();
 
@@ -237,6 +385,7 @@ function paintMinimap(y0,ys){
 }
 
 let backgroundLayer;
+let foregroundLayer;
 
 function genImage(){
     var image = new Image();
@@ -250,6 +399,7 @@ function genImage(){
             height: HEIGHT
         });
         backgroundLayer.add(minimap);
+        minimap.moveToBottom();
 
         // draw the image
         backgroundLayer.draw();
@@ -259,6 +409,8 @@ function genImage(){
 let agentLayer;
 let borderLayer;
 let triangleLayer;
+let connectionLayer;
+let pathLayer;
 
 function toggleTriangulation(){
     let isVisible = $('#triangulationVisible').get()[0].checked;
@@ -266,10 +418,25 @@ function toggleTriangulation(){
         borderLayer.visible(isVisible);
     if(triangleLayer)
         triangleLayer.visible(isVisible);
+    backgroundLayer.draw();
+}
+
+function toggleConnection(){
+    let isVisible = $('#connectionVisible').get()[0].checked;
+    if(connectionLayer)
+        connectionLayer.visible(isVisible);
+    backgroundLayer.draw();
 }
 
 window.addEventListener('load', () => {
     $('#triangulationVisible').on('change', toggleTriangulation);
+    $('#connectionVisible').on('change', toggleConnection);
+    $('#pathVisible').on('change', () => {
+        let isVisible = $('#pathVisible').get()[0].checked;
+        if(pathLayer)
+            pathLayer.visible(isVisible);
+        // No need to explicitly redraw since the foreground is always redrawn
+    });
 
     // Add hidden canvas dynamically to draw map image on,
     // because we want to have variable size.
@@ -295,16 +462,25 @@ window.addEventListener('load', () => {
         height: HEIGHT
     });
 
+
+    // Draw triangles below borders
     backgroundLayer = new Konva.Layer();
+    triangleLayer = new Konva.Group();
+    backgroundLayer.add(triangleLayer);
+    borderLayer = new Konva.Group();
+    backgroundLayer.add(borderLayer);
+    connectionLayer = new Konva.Group();
+    backgroundLayer.add(connectionLayer);
     stage.add(backgroundLayer);
 
-    borderLayer = new Konva.Layer();
-    triangleLayer = new Konva.Layer();
+    foregroundLayer = new Konva.Layer();
+    pathLayer = new Konva.Group();
+    foregroundLayer.add(pathLayer);
 
     let lines = MarchingSquaresJS.isoLines(game.boardAs2DArray(x => 1 - x), 0.5);
     let allPoints = [];
     for(let line of lines){
-        let simpleLine = simplify(line.map(p => ({x: p[0], y: p[1]})), 0.5, false);
+        let simpleLine = simplify(line.map(p => ({x: p[0], y: p[1]})), 1, false);
         //console.log(`Simplified ${line.length} points to ${simpleLine.length} points`);
         // Don't bother adding polygons without area
         if(simpleLine.length <= 2)
@@ -329,7 +505,10 @@ window.addEventListener('load', () => {
 
     // allPoints.map(p => [p.x, p.y]) would work too, but we don't want a copy
     // of a big array.
-    let { triangles } = Delaunator.from(allPoints, p => p.x, p => p.y);
+    let triangulation = Delaunator.from(allPoints, p => p.x, p => p.y);
+    game.trianglePoints = allPoints;
+    let { triangles, halfedges } = game.triangulation = triangulation;
+    game.trianglesPassable = [];
 
     for (let i = 0; i < triangles.length; i += 3) {
         let strTriangle = "M";
@@ -349,18 +528,67 @@ window.addEventListener('load', () => {
             scaleY: stage.height() / game.ys
         });
         triangleLayer.add(triangle);
+        let thisCenter = centerOfTriangle(
+            allPoints[triangles[i]],
+            allPoints[triangles[i + 1]],
+            allPoints[triangles[i + 2]]);
+
+        for(let j = 0; j < 3; j++){
+            if(halfedges[i + j] < 0)
+                continue;
+            let theOtherTriangle = Math.floor(halfedges[i + j] / 3) * 3;
+            let theOtherCenter = centerOfTriangle(
+                allPoints[triangles[theOtherTriangle]],
+                allPoints[triangles[theOtherTriangle + 1]],
+                allPoints[triangles[theOtherTriangle + 2]]);
+            let triangleLine = new Konva.Line({
+                points: [
+                    thisCenter.x * WIDTH / game.xs,
+                    thisCenter.y * HEIGHT / game.ys,
+                    theOtherCenter.x * WIDTH / game.xs,
+                    theOtherCenter.y * HEIGHT / game.ys,
+                ],
+                stroke: 'white',
+                strokeWidth: 0.2,
+                dash: [5, 5],
+            });
+            connectionLayer.add(triangleLine);
+        }
     }
 
-    // Draw triangles below borders
-    stage.add(triangleLayer);
-    stage.add(borderLayer);
+    (function checkPassableTriangles(){
+        game.trianglesPassable = new Array(Math.floor(triangles.length / 3)).fill(0);
+        const centerTriangle = findTriangleAt(game, [game.xs / 2, game.ys / 2]);
+        if(0 <= centerTriangle){
+            let connectedTriangles = {};
+            connectedTriangles[centerTriangle] = true;
+            let openSet = [centerTriangle];
+            while(0 < openSet.length){
+                let thisTriangle = openSet.pop();
+                let thisCenter = centerOfTriangle(
+                    allPoints[triangles[thisTriangle]],
+                    allPoints[triangles[thisTriangle + 1]],
+                    allPoints[triangles[thisTriangle + 2]]);
+                if(!game.cellAt(thisCenter.x, thisCenter.y))
+                    continue;
+                game.trianglesPassable[Math.floor(thisTriangle / 3)] = 1;
+                for(let j = 0; j < 3; j++){
+                    if(halfedges[thisTriangle + j] < 0)
+                        continue;
+                    let theOtherTriangle = Math.floor(halfedges[thisTriangle + j] / 3) * 3;
+                    if(!connectedTriangles.hasOwnProperty(theOtherTriangle)){
+                        connectedTriangles[theOtherTriangle] = true;
+                        openSet.push(theOtherTriangle);
+                    }
+                }
+            }
+        }
+    })();
 
-    agentLayer = new Konva.Layer();
-    stage.add(agentLayer);
-
-    // draw the image
-    borderLayer.draw();
-    triangleLayer.draw();
+    agentLayer = new Konva.Group();
+    foregroundLayer.add(agentLayer);
+    stage.add(foregroundLayer);
+    foregroundLayer.moveToTop();
 
     genImage();
 

@@ -1,6 +1,7 @@
 /* jshint strict: false */
 /* globals require, console */
 var gulp = require('gulp');
+var duration = require("gulp-duration");
 var exit = require('gulp-exit');
 
 var browserify = require('browserify');
@@ -20,12 +21,16 @@ function compile(watch, cb) {
 
     function rebundle(compiler, useUglify) {
         let pre = compiler
-            .bundle()
-            .on('error', function (err) {
-                console.error(err);
-                this.emit('end');
-            })
+            .bundle();
+        if(watch)
+            pre = pre
+                .on('error', function (err) {
+                    console.error(err);
+                    this.emit('end');
+                });
+        pre = pre
             .pipe(source('build.js'))
+            .pipe(duration( 'compiled ' ))
             .pipe(buffer())
             .pipe(rename('index.min.js'))
             .pipe(sourcemaps.init({loadMaps: true}));
