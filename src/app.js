@@ -70,12 +70,12 @@ class Agent{
         this.cooldown = 5;
         if(this.id % 2 === 0)
             this.behaviorTree = new BT.BehaviorTree(
-                new BT.SequenceNode(null, [
+                new BT.SequenceNode([
                     new BT.FindTargetNode(),
-                    new BT.IfNode(null, new BT.IsTargetFoundNode(),
-                        new BT.SequenceNode(null, [
-                            new BT.GetTargetPositionNode(null, "enemyPos"),
-                            new BT.ShootBulletNode(null, "enemyPos"),
+                    new BT.IfNode(new BT.IsTargetFoundNode(),
+                        new BT.SequenceNode([
+                            new BT.GetTargetPositionNode("enemyPos"),
+                            new BT.ShootBulletNode("enemyPos"),
                         ])),
                     new BT.MoveNode()
                 ]));
