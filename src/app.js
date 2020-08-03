@@ -4,6 +4,7 @@ const { perlin_noise_pixel } = require('./perlinNoise');
 const MarchingSquaresJS = require('marchingsquares');
 const simplify = require('simplify-js');
 const Delaunator = require('delaunator');
+const BT = require('./behaviorTree');
 
 
 const WIDTH = 500;
@@ -53,114 +54,6 @@ function findTriangleAt(game, point){
     return -1;
 }
 
-// For now, it's an ugly global table.
-let blackBoard = {};
-
-class BehaviorNode{
-    outputPort = [];
-    inputPort = [];
-    constructor(parent){
-        this.parent = parent;
-    }
-    tick(game, agent){}
-}
-
-class SequenceNode extends BehaviorNode{
-    constructor(parent, children){
-        super(parent);
-        this.children = children;
-    }
-    tick(game, agent){
-        for(let child of this.children)
-            child.tick(game, agent);
-    }
-}
-
-class FindPathNode extends BehaviorNode{
-    constructor(parent){
-        super(parent);
-    }
-    tick(game, agent){
-        agent.findPath(game);
-    }
-}
-
-class MoveNode extends BehaviorNode{
-    constructor(parent){
-        super(parent);
-    }
-    tick(game, agent){
-        agent.moveTo([50, 50]);
-    }
-}
-
-class IfNode extends BehaviorNode{
-    constructor(parent, condition, then, elseNode){
-        super(parent);
-        this.condition = condition;
-        this.then = then;
-        this.elseNode = elseNode;
-    }
-    tick(game, agent){
-        if(this.condition.tick(game, agent)){
-            if(this.then)
-                this.then.tick(game, agent);
-        }
-        else if(this.elseNode)
-            this.elseNode.tick(game, agent);
-    }
-}
-
-class IsTargetFoundNode extends BehaviorNode{
-    constructor(parent){
-        super(parent);
-    }
-    tick(game, agent){
-        return agent.target !== null;
-    }
-}
-
-class FindTargetNode extends BehaviorNode{
-    constructor(parent){
-        super(parent);
-    }
-    tick(game, agent){
-        agent.findEnemy(game);
-    }
-}
-
-class GetTargetPositionNode extends BehaviorNode{
-    constructor(parent, targetPos){
-        super(parent);
-        this.outputPort.push(targetPos);
-    }
-    tick(game, agent){
-        if(!agent.target)
-            return false;
-        blackBoard[this.outputPort[0]] = agent.target.pos;
-        return true;
-    }
-}
-
-class ShootBulletNode extends BehaviorNode{
-    constructor(parent, targetPos){
-        super(parent);
-        this.inputPort.push(targetPos);
-    }
-    tick(game, agent){
-        agent.shootBullet(game, blackBoard[this.inputPort[0]]);
-    }
-}
-
-class BehaviorTree{
-    constructor(rootNode){
-        this.rootNode = rootNode;
-    }
-    tick(game, agent){
-        if(this.rootNode)
-            this.rootNode.tick(game, agent);
-    }
-}
 
 let id_iter = 0;
 
@@ -169,22 +62,22 @@ class Agent{
     active = true;
     path = null;
     unreachables = {};
-    behaviorTree = new BehaviorTree();
+    behaviorTree = new BT.BehaviorTree();
     constructor(pos, team){
         this.id = id_iter++;
         this.pos = pos;
         this.team = team;
         this.cooldown = 5;
         if(this.id % 2 === 0)
-            this.behaviorTree = new BehaviorTree(
-                new SequenceNode(null, [
-                    new FindTargetNode(),
-                    new IfNode(null, new IsTargetFoundNode(),
-                        new SequenceNode(null, [
-                            new GetTargetPositionNode(null, "enemyPos"),
-                            new ShootBulletNode(null, "enemyPos"),
+            this.behaviorTree = new BT.BehaviorTree(
+                new BT.SequenceNode(null, [
+                    new BT.FindTargetNode(),
+                    new BT.IfNode(null, new BT.IsTargetFoundNode(),
+                        new BT.SequenceNode(null, [
+                            new BT.GetTargetPositionNode(null, "enemyPos"),
+                            new BT.ShootBulletNode(null, "enemyPos"),
                         ])),
-                    new MoveNode()
+                    new BT.MoveNode()
                 ]));
     }
 
