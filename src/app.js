@@ -53,7 +53,12 @@ function findTriangleAt(game, point){
     return -1;
 }
 
+// For now, it's an ugly global table.
+let blackBoard = {};
+
 class BehaviorNode{
+    outputPort = [];
+    inputPort = [];
     constructor(parent){
         this.parent = parent;
     }
@@ -89,12 +94,61 @@ class MoveNode extends BehaviorNode{
     }
 }
 
-class FindEnemyNode extends BehaviorNode{
+class IfNode extends BehaviorNode{
+    constructor(parent, condition, then, elseNode){
+        super(parent);
+        this.condition = condition;
+        this.then = then;
+        this.elseNode = elseNode;
+    }
+    tick(game, agent){
+        if(this.condition.tick(game, agent)){
+            if(this.then)
+                this.then.tick(game, agent);
+        }
+        else if(this.elseNode)
+            this.elseNode.tick(game, agent);
+    }
+}
+
+class IsTargetFoundNode extends BehaviorNode{
+    constructor(parent){
+        super(parent);
+    }
+    tick(game, agent){
+        return agent.target !== null;
+    }
+}
+
+class FindTargetNode extends BehaviorNode{
     constructor(parent){
         super(parent);
     }
     tick(game, agent){
         agent.findEnemy(game);
+    }
+}
+
+class GetTargetPositionNode extends BehaviorNode{
+    constructor(parent, targetPos){
+        super(parent);
+        this.outputPort.push(targetPos);
+    }
+    tick(game, agent){
+        if(!agent.target)
+            return false;
+        blackBoard[this.outputPort[0]] = agent.target.pos;
+        return true;
+    }
+}
+
+class ShootBulletNode extends BehaviorNode{
+    constructor(parent, targetPos){
+        super(parent);
+        this.inputPort.push(targetPos);
+    }
+    tick(game, agent){
+        agent.shootBullet(game, blackBoard[this.inputPort[0]]);
     }
 }
 
@@ -120,8 +174,18 @@ class Agent{
         this.id = id_iter++;
         this.pos = pos;
         this.team = team;
+        this.cooldown = 5;
         if(this.id % 2 === 0)
-            this.behaviorTree = new BehaviorTree(new SequenceNode(null, [new FindEnemyNode(), new MoveNode()]));
+            this.behaviorTree = new BehaviorTree(
+                new SequenceNode(null, [
+                    new FindTargetNode(),
+                    new IfNode(null, new IsTargetFoundNode(),
+                        new SequenceNode(null, [
+                            new GetTargetPositionNode(null, "enemyPos"),
+                            new ShootBulletNode(null, "enemyPos"),
+                        ])),
+                    new MoveNode()
+                ]));
     }
 
     /// targetPos needs to be an array of 2 elements
@@ -158,9 +222,38 @@ class Agent{
         }
     }
 
+    shootBullet(game, targetPos){
+        if(0 < this.cooldown)
+            return false;
+        let delta = targetPos.map((x, i) => x - this.pos[i]);
+        let distance = Math.sqrt(delta.reduce((sum, x) => sum += x * x, 0));
+        let bullet = {
+            pos: this.pos,
+            velo: delta.map(x => 3. * x / distance),
+            team: this.team,
+        };
+
+        game.bullets.push(bullet);
+
+        let circle = new Konva.Circle({
+            x: bullet.pos[0] * WIDTH / game.xs,
+            y: bullet.pos[1] * HEIGHT / game.ys,
+            radius: 3,
+            fill: this.team === false ? 'white' : 'purple',
+            stroke: 'yellow',
+            strokeWidth: 0.1
+        });
+        agentLayer.add(circle);
+        bullet.shape = circle;
+        this.cooldown += 5;
+        return true;
+    }
+
     update(game){
         if(this.behaviorTree.rootNode){
             this.behaviorTree.tick(game, this);
+            if(0 < this.cooldown)
+                this.cooldown--;
             return;
         }
 
@@ -179,24 +272,7 @@ class Agent{
 
             // Shoot bullets
             if(distance < 100. && Math.random() < 0.05){
-                let bullet = {
-                    pos: this.pos,
-                    velo: delta.map(x => 3. * x / distance),
-                    team: this.team,
-                };
-
-                game.bullets.push(bullet);
-
-                let circle = new Konva.Circle({
-                    x: bullet.pos[0] * WIDTH / game.xs,
-                    y: bullet.pos[1] * HEIGHT / game.ys,
-                    radius: 3,
-                    fill: this.team === false ? 'white' : 'purple',
-                    stroke: 'yellow',
-                    strokeWidth: 0.1
-                });
-                agentLayer.add(circle);
-                bullet.shape = circle;
+                this.shootBullet(game, targetPos);
             }
 
             this.findPath(game);
@@ -227,6 +303,9 @@ class Agent{
         else{
             this.pathLine.visible(false);
         }
+
+        if(0 < this.cooldown)
+            this.cooldown--;
     }
 
     findPath(game){
