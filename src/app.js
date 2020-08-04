@@ -632,13 +632,17 @@ window.addEventListener('load', () => {
             const rect = document.createElementNS(ns, "rect");
             rect.setAttributeNS(null, 'width', 100);
             rect.setAttributeNS(null, 'height', 25);
-            rect.setAttributeNS(null, 'fill', '#f06');
+            rect.setAttributeNS(null, 'fill', node instanceof BT.IfNode ? '#7f7f00' :
+                node instanceof BT.SequenceNode ? '#007f00' : '#f06');
             nodeElement.appendChild(rect);
             const text = document.createElementNS(ns, "text");
             text.setAttribute('x', '10');
             text.setAttribute('y', '20');
             text.setAttribute('font-size','18');
-            text.textContent = node.constructor.name;
+            let nodeName = node.constructor.name;
+            if(nodeName.substr(nodeName.length-4) === "Node")
+                nodeName = nodeName.substr(0, nodeName.length-4);
+            text.textContent = nodeName;
             text.setAttribute("class", "noselect");
             text.style.fill = "white";
             nodeElement.appendChild(text);
