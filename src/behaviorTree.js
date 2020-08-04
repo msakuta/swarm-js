@@ -10,6 +10,9 @@ export class BehaviorNode{
         this.parent = parent;
     }
     tick(game, agent){}
+    enumerateChildren(){
+        return [];
+    }
 }
 
 export class SequenceNode extends BehaviorNode{
@@ -20,6 +23,9 @@ export class SequenceNode extends BehaviorNode{
     tick(game, agent){
         for(let child of this.children)
             child.tick(game, agent);
+    }
+    enumerateChildren(){
+        return this.children;
     }
 }
 
@@ -78,6 +84,14 @@ export class IfNode extends BehaviorNode{
         }
         else if(this.elseNode)
             this.elseNode.tick(game, agent);
+    }
+    enumerateChildren(){
+        let ret = [this.condition];
+        if(this.then)
+            ret.push(this.then);
+        if(this.elseNode)
+            ret.push(this.elseNode);
+        return ret;
     }
 }
 

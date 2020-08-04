@@ -16,6 +16,14 @@
             height: 500px;
             display: inline-block;
         }
+
+        svg text.noselect{
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body id="body">
@@ -42,6 +50,7 @@
     </div>
     <div id="scratch"></div>
     <div id="minimapContainer"></div>
+    <div id="treeContainer"></div>
     <hr>
     <div>Source on <a href="https://github.com/msakuta/swarm-js">GitHub</a>.</div>
     <div>Powered by <a href="https://konvajs.org/">Konva.js</a>,

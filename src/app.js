@@ -15,6 +15,21 @@ const FRAMERATE = 50;
 
 let id_iter = 0;
 
+let mainTree = new BT.BehaviorTree(
+    new BT.SequenceNode([
+        new BT.FindTargetNode(),
+        new BT.IfNode(new BT.FindPathNode(),
+            new BT.SequenceNode([
+                new BT.GetNextNodePositionNode("nextNodePos"),
+                new BT.MoveNode("nextNodePos"),
+            ])),
+        new BT.IfNode(new BT.IsTargetFoundNode(),
+            new BT.SequenceNode([
+                new BT.GetTargetPositionNode("enemyPos"),
+                new BT.ShootBulletNode("enemyPos"),
+            ])),
+    ]));
+
 class Agent{
     target = null;
     active = true;
@@ -27,20 +42,7 @@ class Agent{
         this.team = team;
         this.cooldown = 5;
         if(this.id % 1 === 0)
-            this.behaviorTree = new BT.BehaviorTree(
-                new BT.SequenceNode([
-                    new BT.FindTargetNode(),
-                    new BT.IfNode(new BT.FindPathNode(),
-                        new BT.SequenceNode([
-                            new BT.GetNextNodePositionNode("nextNodePos"),
-                            new BT.MoveNode("nextNodePos"),
-                        ])),
-                    new BT.IfNode(new BT.IsTargetFoundNode(),
-                        new BT.SequenceNode([
-                            new BT.GetTargetPositionNode("enemyPos"),
-                            new BT.ShootBulletNode("enemyPos"),
-                        ])),
-                ]));
+            this.behaviorTree = mainTree;
     }
 
     /// targetPos needs to be an array of 2 elements
@@ -606,6 +608,60 @@ window.addEventListener('load', () => {
     foregroundLayer.moveToTop();
 
     genImage();
+
+    (function renderTree(){
+        const ns = 'http://www.w3.org/2000/svg';
+        const container = $("#treeContainer")[0];
+        const svg = document.createElementNS(ns, "svg");
+        svg.setAttributeNS(null, "width", 1000);
+        svg.setAttributeNS(null, "height", 600);
+
+        function renderNode(node, offset, parent){
+            const nodeElement = document.createElementNS(ns, "g");
+            nodeElement.setAttributeNS(null, 'width', 100);
+            nodeElement.setAttributeNS(null, 'height', 25);
+            if(parent){
+                const parentConnector = document.createElementNS(ns, "path");
+                parentConnector.setAttribute("d", `M${parent[0]} ${parent[1] + 25
+                    }C${parent[0]} ${parent[1]+42.5
+                    },${offset[0] + 60} ${offset[1]-12.5},${offset[0] + 60},${offset[1]}`);
+                parentConnector.setAttribute("stroke-width", "2");
+                parentConnector.setAttribute("stroke", "#ff0000");
+                svg.appendChild(parentConnector);
+            }
+            const rect = document.createElementNS(ns, "rect");
+            rect.setAttributeNS(null, 'width', 100);
+            rect.setAttributeNS(null, 'height', 25);
+            rect.setAttributeNS(null, 'fill', '#f06');
+            nodeElement.appendChild(rect);
+            const text = document.createElementNS(ns, "text");
+            text.setAttribute('x', '10');
+            text.setAttribute('y', '20');
+            text.setAttribute('font-size','18');
+            text.textContent = node.constructor.name;
+            text.setAttribute("class", "noselect");
+            text.style.fill = "white";
+            nodeElement.appendChild(text);
+            nodeElement.setAttribute("transform", `translate(${offset[0]}, ${offset[1]})`);
+            svg.appendChild(nodeElement);
+        }
+
+        function renderSubTree(node, offset, parent){
+            const children = node.enumerateChildren();
+            renderNode(node, offset, parent);
+            const parentPos = [offset[0] + 60, offset[1]];
+            for(let i = 0; i < children.length; i++){
+                const width = renderSubTree(children[i], [offset[0], offset[1] + 50], parentPos);
+                if(i !== children.length-1)
+                    offset[0] = width;
+            }
+            return offset[0] + 120;
+        }
+
+        renderSubTree(mainTree.rootNode, [0, 0]);
+        svg.setAttribute("transform", "scale(0.75)");
+        container.appendChild(svg);
+    })();
 
     function frameProc(){
         game.animate();
