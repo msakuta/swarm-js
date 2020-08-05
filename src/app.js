@@ -630,8 +630,9 @@ window.addEventListener('load', () => {
                 svg.appendChild(parentConnector);
             }
             const rect = document.createElementNS(ns, "rect");
+            rect.setAttributeNS(null, "class", "draggable");
             rect.setAttributeNS(null, 'width', 100);
-            rect.setAttributeNS(null, 'height', 25);
+            rect.setAttributeNS(null, 'height', 25 + (node.inputPort.length + node.outputPort.length) * 20);
             rect.setAttributeNS(null, 'fill', node instanceof BT.IfNode ? '#7f7f00' :
                 node instanceof BT.SequenceNode ? '#007f00' : '#f06');
             nodeElement.appendChild(rect);
@@ -646,6 +647,33 @@ window.addEventListener('load', () => {
             text.setAttribute("class", "noselect");
             text.style.fill = "white";
             nodeElement.appendChild(text);
+
+            let y = 40;
+            function addPort(name, x, connectorColor, textColor){
+                const portConnector = document.createElementNS(ns, "rect");
+                portConnector.setAttribute('x', x - 5);
+                portConnector.setAttribute('y', y - 10);
+                portConnector.setAttributeNS(null, 'width', 10);
+                portConnector.setAttributeNS(null, 'height', 10);
+                portConnector.setAttributeNS(null, 'fill', connectorColor);
+                portConnector.setAttributeNS(null, 'stroke', 'black');
+                nodeElement.appendChild(portConnector);
+                const portText = document.createElementNS(ns, "text");
+                portText.setAttribute('x', 10);
+                portText.setAttribute('y', y);
+                portText.setAttribute('font-size','16');
+                portText.style.fill = textColor;
+                portText.setAttribute("class", "noselect");
+                portText.textContent = name;
+                nodeElement.appendChild(portText);
+                y += 20;
+            }
+
+            for(let i = 0; i < node.inputPort.length; i++)
+                addPort(node.inputPort[i] || "IN", 0, "#7f7fff", "#afafff");
+            for(let i = 0; i < node.outputPort.length; i++)
+                addPort(node.outputPort[i] || "OUT", 100, "#ff7f7f", "#ffafaf");
+
             nodeElement.setAttribute("transform", `translate(${offset[0]}, ${offset[1]})`);
             svg.appendChild(nodeElement);
         }
