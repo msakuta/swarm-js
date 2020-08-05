@@ -6,6 +6,7 @@ let blackBoard = {};
 export class BehaviorNode{
     outputPort = [];
     inputPort = [];
+    name = "Node";
     constructor(){
         this.parent = parent;
     }
@@ -18,6 +19,7 @@ export class BehaviorNode{
 export class SequenceNode extends BehaviorNode{
     constructor(children){
         super();
+        this.name = "Sequence";
         this.children = children;
     }
     tick(game, agent){
@@ -32,6 +34,7 @@ export class SequenceNode extends BehaviorNode{
 export class FindPathNode extends BehaviorNode{
     constructor(target){
         super();
+        this.name = "FindPath";
         this.inputPort.push(target);
     }
     tick(game, agent){
@@ -43,6 +46,7 @@ export class FindPathNode extends BehaviorNode{
 export class GetNextNodePositionNode extends BehaviorNode{
     constructor(position){
         super();
+        this.name = "GetNextNodePosition";
         this.outputPort.push(position);
     }
     tick(game, agent){
@@ -58,6 +62,7 @@ export class GetNextNodePositionNode extends BehaviorNode{
 export class MoveNode extends BehaviorNode{
     constructor(position){
         super();
+        this.name = "Move";
         this.inputPort.push(position);
     }
     tick(game, agent){
@@ -73,6 +78,7 @@ export class MoveNode extends BehaviorNode{
 export class IfNode extends BehaviorNode{
     constructor(condition, then, elseNode){
         super();
+        this.name = "If";
         this.condition = condition;
         this.then = then;
         this.elseNode = elseNode;
@@ -98,6 +104,7 @@ export class IfNode extends BehaviorNode{
 export class IsTargetFoundNode extends BehaviorNode{
     constructor(){
         super();
+        this.name = "IsTargetFound";
     }
     tick(game, agent){
         return agent.target !== null;
@@ -107,6 +114,7 @@ export class IsTargetFoundNode extends BehaviorNode{
 export class FindTargetNode extends BehaviorNode{
     constructor(){
         super();
+        this.name = "FindTarget";
     }
     tick(game, agent){
         agent.findEnemy(game);
@@ -116,6 +124,7 @@ export class FindTargetNode extends BehaviorNode{
 export class GetTargetNode extends BehaviorNode{
     constructor(target){
         super();
+        this.name = "GetTarget";
         this.outputPort.push(target);
     }
     tick(game, agent){
@@ -127,6 +136,7 @@ export class GetTargetNode extends BehaviorNode{
 export class GetTargetPositionNode extends BehaviorNode{
     constructor(targetPos){
         super();
+        this.name = "GetTargetPosition";
         this.outputPort.push(targetPos);
     }
     tick(game, agent){
@@ -140,6 +150,7 @@ export class GetTargetPositionNode extends BehaviorNode{
 export class ShootBulletNode extends BehaviorNode{
     constructor(targetPos){
         super();
+        this.name = "ShootBullet";
         this.inputPort.push(targetPos);
     }
     tick(game, agent){

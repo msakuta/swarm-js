@@ -640,7 +640,7 @@ window.addEventListener('load', () => {
             text.setAttribute('x', '10');
             text.setAttribute('y', '20');
             text.setAttribute('font-size','18');
-            let nodeName = node.constructor.name;
+            let nodeName = node.name;
             if(nodeName.substr(nodeName.length-4) === "Node")
                 nodeName = nodeName.substr(0, nodeName.length-4);
             text.textContent = nodeName;
