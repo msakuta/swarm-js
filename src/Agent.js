@@ -4,12 +4,18 @@ import * as BT from "./behaviorTree";
 const buildMainTree = () => new BT.BehaviorTree(
     new BT.SequenceNode([
         new BT.FindTargetNode("{target}"),
-        new BT.WaitNode(15),
-        new BT.IfNode(new BT.FindPathNode("{target}"),
+        new BT.ReactiveSequenceNode([
+            new BT.ForceSuccessNode(
+                new BT.SequenceNode([
+                    new BT.GetNextNodePositionNode("{nextNodePos}"),
+                    new BT.MoveNode("{nextNodePos}"),
+                ])
+            ),
             new BT.SequenceNode([
-                new BT.GetNextNodePositionNode("{nextNodePos}"),
-                new BT.MoveNode("{nextNodePos}"),
-            ])),
+                new BT.WaitNode(15),
+                new BT.FindPathNode("{target}"),
+            ]),
+        ]),
         new BT.IfNode(new BT.IsTargetFoundNode(),
             new BT.SequenceNode([
                 // new BT.SequenceNode([

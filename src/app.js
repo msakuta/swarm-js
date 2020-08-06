@@ -425,7 +425,7 @@ window.addEventListener('load', () => {
             rect.setAttributeNS(null, 'width', 100);
             rect.setAttributeNS(null, 'height', 25 + (node.inputPort.length + node.outputPort.length) * 20);
             rect.setAttributeNS(null, 'fill', node instanceof BT.IfNode ? '#7f7f00' :
-                node instanceof BT.SequenceNode ? '#007f00' : '#f06');
+                node.enumerateChildren().length ? '#007f00' : '#f06');
             nodeElement.appendChild(rect);
             const text = document.createElementNS(ns, "text");
             text.setAttribute('x', '10');

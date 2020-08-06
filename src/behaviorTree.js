@@ -57,14 +57,60 @@ export class SequenceNode extends BehaviorNode{
             const result = this.children[this.state].callTick(context);
             if(result === SUSPEND)
                 return SUSPEND;
-            else if(!result)
+            else if(!result){
+                this.state = 0;
                 return false;
+            }
         }
         this.state = 0;
         return true;
     }
     enumerateChildren(){
         return this.children;
+    }
+}
+
+export class ReactiveSequenceNode extends BehaviorNode{
+    constructor(children){
+        super();
+        this.name = "ReactiveSequence";
+        this.children = children;
+        this.state = 0;
+    }
+    tick(context){
+        for(; this.state < this.children.length; this.state++){
+            const result = this.children[this.state].callTick(context);
+            if(result === SUSPEND){
+                this.state = 0;
+                return SUSPEND;
+            }
+            else if(!result){
+                this.state = 0;
+                return false;
+            }
+        }
+        this.state = 0;
+        return true;
+    }
+    enumerateChildren(){
+        return this.children;
+    }
+}
+
+export class ForceSuccessNode extends BehaviorNode{
+    constructor(child){
+        super();
+        this.name = "ForceSuccess";
+        this.child = child;
+    }
+    tick(context){
+        const result = this.child.callTick(context);
+        if(result === SUSPEND)
+            return SUSPEND;
+        return true;
+    }
+    enumerateChildren(){
+        return [this.child];
     }
 }
 
