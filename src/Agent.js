@@ -1,23 +1,26 @@
 import { centerOfTriangleObj, findTriangleAt } from "./triangleUtils";
 import * as BT from "./behaviorTree";
 
-export let mainTree = new BT.BehaviorTree(
+const buildMainTree = () => new BT.BehaviorTree(
     new BT.SequenceNode([
-        new BT.FindTargetNode("target"),
-        new BT.IfNode(new BT.FindPathNode("target"),
+        new BT.FindTargetNode("{target}"),
+        new BT.WaitNode(15),
+        new BT.IfNode(new BT.FindPathNode("{target}"),
             new BT.SequenceNode([
-                new BT.GetNextNodePositionNode("nextNodePos"),
-                new BT.MoveNode("nextNodePos"),
+                new BT.GetNextNodePositionNode("{nextNodePos}"),
+                new BT.MoveNode("{nextNodePos}"),
             ])),
         new BT.IfNode(new BT.IsTargetFoundNode(),
             new BT.SequenceNode([
                 // new BT.SequenceNode([
                 //     new BT.PrintEntityNode("target"),
                 // ]),
-                new BT.GetTargetPositionNode("enemyPos"),
-                new BT.ShootBulletNode("enemyPos"),
+                new BT.GetTargetPositionNode("{enemyPos}"),
+                new BT.ShootBulletNode("{enemyPos}"),
             ])),
     ]));
+
+export let mainTree = buildMainTree();
 
 let id_iter = 0;
 
@@ -33,7 +36,7 @@ export class Agent{
         this.team = team;
         this.cooldown = 5;
         if(this.id % 1 === 0)
-            this.behaviorTree = mainTree;
+            this.behaviorTree = buildMainTree();
     }
 
     /// targetPos needs to be an array of 2 elements

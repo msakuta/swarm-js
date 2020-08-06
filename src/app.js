@@ -458,7 +458,7 @@ window.addEventListener('load', () => {
                 return ret;
             }
 
-            function addPortConnector([x, y], connectorColor, portCollection, portName){
+            function addPortConnector([x, y], connectorColor, portCollection, portValue){
                 const portConnector = document.createElementNS(ns, "rect");
                 portConnector.setAttribute('x', x - 5);
                 portConnector.setAttribute('y', y - 10);
@@ -467,23 +467,26 @@ window.addEventListener('load', () => {
                 portConnector.setAttributeNS(null, 'fill', connectorColor);
                 portConnector.setAttributeNS(null, 'stroke', 'black');
                 nodeElement.appendChild(portConnector);
-                if(portName){
-                    if(!(portName in portCollection))
-                        portCollection[portName] = [];
-                    portCollection[portName].push({
-                        elem: portConnector,
-                        x: offset[0] + x,
-                        y: offset[1] + y - 5,
-                    });
+                if(portValue){
+                    if(portValue[0] === "{" && portValue[portValue.length-1] === "}"){
+                        const portName = portValue.substr(1, portValue.length-2);
+                        if(!(portName in portCollection))
+                            portCollection[portName] = [];
+                        portCollection[portName].push({
+                            elem: portConnector,
+                            x: offset[0] + x,
+                            y: offset[1] + y - 5,
+                        });
+                    }
                 }
             }
 
             node.inputPort
-                .map(portName => [addPort(portName || "IN", "#afafff"), portName])
-                .forEach(([y, portName]) => addPortConnector([0, y], "#7f7fff", inputPorts, portName));
+                .map(portValue => [addPort(portValue || "IN", "#afafff"), portValue])
+                .forEach(([y, portValue]) => addPortConnector([0, y], "#7f7fff", inputPorts, portValue));
             node.outputPort
-                .map(portName => [addPort(portName || "OUT", "#ffafaf"), portName])
-                .forEach(([y, portName]) => addPortConnector([width, y], "#ff7f7f", outputPorts, portName));
+                .map(portValue => [addPort(portValue || "OUT", "#ffafaf"), portValue])
+                .forEach(([y, portValue]) => addPortConnector([width, y], "#ff7f7f", outputPorts, portValue));
 
             rect.setAttributeNS(null, "width", width);
 
