@@ -155,10 +155,6 @@ class Agent{
             else if(followPath){
                 this.path.pop();
             }
-            this.pathLine.visible(true);
-        }
-        else{
-            this.pathLine.visible(false);
         }
 
         if(0 < this.cooldown)
@@ -227,12 +223,16 @@ class Agent{
                     this.pos[1] * HEIGHT / game.ys,
                 );
                 this.pathLine.points(plotPath);
+                this.pathLine.visible(true);
             }
             else{
                 this.unreachables[this.target.id] = true;
                 this.target = null;
+                this.pathLine.visible(false);
             }
         }
+        else
+            this.pathLine.visible(false);
     }
 }
 
