@@ -414,9 +414,9 @@ window.addEventListener('load', () => {
             if(parent){
                 const parentConnector = document.createElementNS(ns, "path");
                 parentConnector.setAttribute("d", `M${parent[0]} ${parent[1] + 25
-                    }C${parent[0]} ${parent[1]+42.5
-                    },${offset[0] + 60} ${offset[1]-12.5},${offset[0] + 60},${offset[1]}`);
-                parentConnector.setAttribute("stroke-width", "2");
+                    }C${parent[0]} ${parent[1]+45
+                    },${offset[0] + 60} ${offset[1]-15},${offset[0] + 60},${offset[1]}`);
+                parentConnector.setAttribute("stroke-width", 4);
                 parentConnector.setAttribute("stroke", "#ff0000");
                 svgInternal.appendChild(parentConnector);
             }
@@ -514,10 +514,12 @@ window.addEventListener('load', () => {
                     for(let outputPort of outputPorts[key]){
                         const portConnector = document.createElementNS(ns, "path")
                         portConnector.setAttribute("d", `M${inputPort.x} ${inputPort.y
-                            }C${inputPort.x + 12.5} ${inputPort.y
-                            },${outputPort.x - 12.5} ${outputPort.y},${outputPort.x},${outputPort.y}`);
+                            }C${inputPort.x - 20} ${inputPort.y
+                            },${outputPort.x + 20} ${outputPort.y
+                            },${outputPort.x},${outputPort.y}`);
                         portConnector.setAttribute("stroke-width", "2");
                         portConnector.setAttribute("stroke", "#7fff00");
+                        portConnector.setAttribute("fill", "none");
                         svgInternal.appendChild(portConnector);
                     }
                 }
