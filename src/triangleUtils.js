@@ -41,3 +41,15 @@ export function findTriangleAt(game, point){
     return -1;
 }
 
+function nextHalfedge(e) { return (e % 3 === 2) ? e - 2 : e + 1; }
+function prevHalfedge(e) { return (e % 3 === 0) ? e + 2 : e - 1; }
+
+export function forEachTriangleEdge(points, delaunay, callback) {
+    for (let e = 0; e < delaunay.triangles.length; e++) {
+        if (e > delaunay.halfedges[e]) {
+            const p = points[delaunay.triangles[e]];
+            const q = points[delaunay.triangles[nextHalfedge(e)]];
+            callback(e, p, q);
+        }
+    }
+}

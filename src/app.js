@@ -5,7 +5,7 @@ const MarchingSquaresJS = require('marchingsquares');
 const simplify = require('simplify-js');
 const Delaunator = require('delaunator');
 import * as BT from "./behaviorTree";
-import { centerOfTriangle, centerOfTriangleObj, findTriangleAt } from "./triangleUtils";
+import { centerOfTriangle, centerOfTriangleObj, findTriangleAt, forEachTriangleEdge } from "./triangleUtils";
 
 
 const WIDTH = 500;
@@ -527,24 +527,24 @@ window.addEventListener('load', () => {
     let { triangles, halfedges } = game.triangulation = triangulation;
     game.trianglesPassable = [];
 
-    for (let i = 0; i < triangles.length; i += 3) {
-        let strTriangle = "M";
-        [
-            allPoints[triangles[i]],
-            allPoints[triangles[i + 1]],
-            allPoints[triangles[i + 2]]
-        ].forEach(v => {strTriangle += v.x + "," + v.y + "L"});
-        let triangle = new Konva.Path({
+    forEachTriangleEdge(allPoints, triangulation, (_e, p, q) => {
+        let edge = new Konva.Line({
             x: 0.5 * stage.width() / game.xs,
             y: 0.5 * stage.height() / game.ys,
-            data: strTriangle,
+            points: [p, q].reduce((list, v) => {
+                list.push(v.x, v.y);
+                return list;
+            }, []),
             stroke: 'rgba(1, 0, 1, 0.5)',
             strokeWidth: 0.2,
             fill: null,
             scaleX: stage.width() / game.xs,
             scaleY: stage.height() / game.ys
         });
-        triangleLayer.add(triangle);
+        triangleLayer.add(edge);
+    });
+
+    for (let i = 0; i < triangles.length; i += 3) {
         let thisCenter = centerOfTriangle(
             allPoints[triangles[i]],
             allPoints[triangles[i + 1]],
