@@ -67,7 +67,7 @@ export class MoveNode extends BehaviorNode{
     }
     tick(game, agent){
         if(this.inputPort[0]){
-            agent.moveTo(blackBoard[this.inputPort[0]]);
+            agent.moveTo(game, blackBoard[this.inputPort[0]]);
             return true;
         }
         else
