@@ -189,6 +189,17 @@ export class MoveNode extends BehaviorNode{
     }
 }
 
+export class FollowPathNode extends BehaviorNode{
+    constructor(){
+        super();
+        this.name = "FollowPath";
+    }
+    tick({game, agent}){
+        agent.followPath(game);
+        return true;
+    }
+}
+
 export class IfNode extends BehaviorNode{
     constructor(condition, then, elseNode){
         super();

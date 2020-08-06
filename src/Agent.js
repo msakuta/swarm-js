@@ -6,10 +6,7 @@ const buildMainTree = () => new BT.BehaviorTree(
         new BT.FindTargetNode("{target}"),
         new BT.ReactiveSequenceNode([
             new BT.ForceSuccessNode(
-                new BT.SequenceNode([
-                    new BT.GetNextNodePositionNode("{nextNodePos}"),
-                    new BT.MoveNode("{nextNodePos}"),
-                ])
+                new BT.FollowPathNode(),
             ),
             new BT.SequenceNode([
                 new BT.WaitNode(15),
@@ -56,6 +53,20 @@ export class Agent{
             this.pos = newpos;
             this.shape.x( this.pos[0] * game.WIDTH / game.xs);
             this.shape.y( this.pos[1] * game.HEIGHT / game.ys);
+        }
+    }
+
+    followPath(game){
+        if(this.path && 0 < this.path.length){
+            const center = centerOfTriangleObj(game.triangulation, game.trianglePoints,
+                this.path[this.path.length-1]);
+            const targetPos = [center.x, center.y];
+            this.moveTo(game, targetPos);
+            let distance = Math.sqrt(targetPos.map((x, i) => x - this.pos[i]).reduce((sum, x) => sum += x * x, 0));
+            if(distance < 1.){
+                this.path.pop();
+            }
+            this.plotPath(game);
         }
     }
 
@@ -205,34 +216,40 @@ export class Agent{
             }
             if(0 <= cameFrom[Math.floor(targetTriangle / 3)]){
                 this.path = [];
-                let plotPath = [
-                    this.target.pos[0] * game.WIDTH / game.xs,
-                    this.target.pos[1] * game.HEIGHT / game.ys,
-                ];
                 for(let traverser = targetTriangle; traverser != thisTriangle && 0 < traverser;
                     traverser = cameFrom[Math.floor(traverser / 3)])
                 {
-                    const center = centerOfTriangleObj(game.triangulation, game.trianglePoints, traverser);
-                    plotPath.push(
-                        center.x * game.WIDTH / game.xs,
-                        center.y * game.HEIGHT / game.ys,
-                    );
                     this.path.push(traverser);
                 }
-                plotPath.push(
-                    this.pos[0] * game.WIDTH / game.xs,
-                    this.pos[1] * game.HEIGHT / game.ys,
-                );
-                this.pathLine.points(plotPath);
-                this.pathLine.visible(true);
             }
             else{
                 this.unreachables[this.target.id] = true;
                 this.target = null;
-                this.pathLine.visible(false);
             }
         }
-        else
+        this.plotPath(game);
+    }
+
+    plotPath(game){
+        if(this.path && 0 <= this.path.length){
+            let plotPath = [];
+            for(let pathNode of this.path)
+            {
+                const center = centerOfTriangleObj(game.triangulation, game.trianglePoints, pathNode);
+                plotPath.push(
+                    center.x * game.WIDTH / game.xs,
+                    center.y * game.HEIGHT / game.ys,
+                );
+            }
+            plotPath.push(
+                this.pos[0] * game.WIDTH / game.xs,
+                this.pos[1] * game.HEIGHT / game.ys,
+            );
+            this.pathLine.points(plotPath);
+            this.pathLine.visible(true);
+        }
+        else{
             this.pathLine.visible(false);
+        }
     }
 }
