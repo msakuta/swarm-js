@@ -17,8 +17,8 @@ let id_iter = 0;
 
 let mainTree = new BT.BehaviorTree(
     new BT.SequenceNode([
-        new BT.FindTargetNode(),
-        new BT.IfNode(new BT.FindPathNode(),
+        new BT.FindTargetNode("target"),
+        new BT.IfNode(new BT.FindPathNode("target"),
             new BT.SequenceNode([
                 new BT.GetNextNodePositionNode("nextNodePos"),
                 new BT.MoveNode("nextNodePos"),
@@ -77,6 +77,7 @@ class Agent{
         if(bestAgent !== null){
             this.target = bestAgent;
         }
+        return this.target;
     }
 
     shootBullet(game, targetPos){
@@ -615,11 +616,19 @@ window.addEventListener('load', () => {
         const svg = document.createElementNS(ns, "svg");
         svg.setAttributeNS(null, "width", 1000);
         svg.setAttributeNS(null, "height", 600);
+        // Adding svg and nodes first and then adjust attributes may not be optimal in terms of DOM manipulation
+        // and rendering, but we need it to compute text widths on the browser window.
+        container.appendChild(svg);
+        const svgInternal = document.createElementNS(ns, "g");
+        svg.appendChild(svgInternal);
+
+        const deferred = [];
 
         function renderNode(node, offset, parent){
             const nodeElement = document.createElementNS(ns, "g");
             nodeElement.setAttributeNS(null, 'width', 100);
             nodeElement.setAttributeNS(null, 'height', 25);
+            svgInternal.appendChild(nodeElement);
             if(parent){
                 const parentConnector = document.createElementNS(ns, "path");
                 parentConnector.setAttribute("d", `M${parent[0]} ${parent[1] + 25
@@ -627,7 +636,7 @@ window.addEventListener('load', () => {
                     },${offset[0] + 60} ${offset[1]-12.5},${offset[0] + 60},${offset[1]}`);
                 parentConnector.setAttribute("stroke-width", "2");
                 parentConnector.setAttribute("stroke", "#ff0000");
-                svg.appendChild(parentConnector);
+                svgInternal.appendChild(parentConnector);
             }
             const rect = document.createElementNS(ns, "rect");
             rect.setAttributeNS(null, "class", "draggable");
@@ -647,17 +656,11 @@ window.addEventListener('load', () => {
             text.setAttribute("class", "noselect");
             text.style.fill = "white";
             nodeElement.appendChild(text);
+            const bbox = text.getBBox();
+            let width = Math.max(100, bbox.width + 20);
 
             let y = 40;
-            function addPort(name, x, connectorColor, textColor){
-                const portConnector = document.createElementNS(ns, "rect");
-                portConnector.setAttribute('x', x - 5);
-                portConnector.setAttribute('y', y - 10);
-                portConnector.setAttributeNS(null, 'width', 10);
-                portConnector.setAttributeNS(null, 'height', 10);
-                portConnector.setAttributeNS(null, 'fill', connectorColor);
-                portConnector.setAttributeNS(null, 'stroke', 'black');
-                nodeElement.appendChild(portConnector);
+            function addPort(name, textColor){
                 const portText = document.createElementNS(ns, "text");
                 portText.setAttribute('x', 10);
                 portText.setAttribute('y', y);
@@ -666,33 +669,59 @@ window.addEventListener('load', () => {
                 portText.setAttribute("class", "noselect");
                 portText.textContent = name;
                 nodeElement.appendChild(portText);
+                const bbox = portText.getBBox();
+                width = Math.max(width, bbox.width + 20);
+                const ret = y;
                 y += 20;
+                return ret;
             }
 
-            for(let i = 0; i < node.inputPort.length; i++)
-                addPort(node.inputPort[i] || "IN", 0, "#7f7fff", "#afafff");
-            for(let i = 0; i < node.outputPort.length; i++)
-                addPort(node.outputPort[i] || "OUT", 100, "#ff7f7f", "#ffafaf");
+            function addPortConnector([x, y], connectorColor){
+                const portConnector = document.createElementNS(ns, "rect");
+                portConnector.setAttribute('x', x - 5);
+                portConnector.setAttribute('y', y - 10);
+                portConnector.setAttributeNS(null, 'width', 10);
+                portConnector.setAttributeNS(null, 'height', 10);
+                portConnector.setAttributeNS(null, 'fill', connectorColor);
+                portConnector.setAttributeNS(null, 'stroke', 'black');
+                nodeElement.appendChild(portConnector);
+            }
+
+            node.inputPort
+                .map(portName => addPort(portName || "IN", "#afafff"))
+                .forEach(y => addPortConnector([0, y], "#7f7fff"));
+            node.outputPort
+                .map(portName => addPort(portName || "OUT", "#ffafaf"))
+                .forEach(y => addPortConnector([width, y], "#ff7f7f"));
+
+            rect.setAttributeNS(null, "width", width);
 
             nodeElement.setAttribute("transform", `translate(${offset[0]}, ${offset[1]})`);
-            svg.appendChild(nodeElement);
+
+            return [width, y];
         }
 
         function renderSubTree(node, offset, parent){
             const children = node.enumerateChildren();
-            renderNode(node, offset, parent);
+            const thisSize = renderNode(node, offset, parent);
+            const x = offset[0];
             const parentPos = [offset[0] + 60, offset[1]];
+            let maxHeight = thisSize[1];
             for(let i = 0; i < children.length; i++){
-                const width = renderSubTree(children[i], [offset[0], offset[1] + 50], parentPos);
-                if(i !== children.length-1)
-                    offset[0] = width;
+                const [width, height] = renderSubTree(children[i], [offset[0], offset[1] + 50], parentPos);
+                offset[0] += width;
+                maxHeight = Math.max(maxHeight, thisSize[1] + 10 + height);
             }
-            return offset[0] + 120;
+            return [Math.max(thisSize[0], offset[0] - x) + 20, maxHeight];
         }
 
-        renderSubTree(mainTree.rootNode, [0, 0]);
-        svg.setAttribute("transform", "scale(0.75)");
-        container.appendChild(svg);
+        const size = renderSubTree(mainTree.rootNode, [20, 20]);
+        const scale = 0.75;
+        // We cannot apply transform to svg element itself because Edge doesn't support it.
+        svg.setAttribute("width", (size[0] + 20) * scale);
+        svg.setAttribute("height", (size[1] + 20) * scale);
+        svgInternal.setAttribute("transform", `scale(${scale})`);
+        deferred.forEach(fn => fn());
     })();
 
     function frameProc(){

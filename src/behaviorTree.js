@@ -112,12 +112,14 @@ export class IsTargetFoundNode extends BehaviorNode{
 }
 
 export class FindTargetNode extends BehaviorNode{
-    constructor(){
+    constructor(target){
         super();
         this.name = "FindTarget";
+        this.outputPort.push(target);
     }
     tick(game, agent){
-        agent.findEnemy(game);
+        blackBoard[this.outputPort[0]] = agent.findEnemy(game);
+        return true;
     }
 }
 
