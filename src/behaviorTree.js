@@ -135,6 +135,18 @@ export class GetTargetNode extends BehaviorNode{
     }
 }
 
+export class PrintEntityNode extends BehaviorNode{
+    constructor(target){
+        super();
+        this.name = "PrintEntity";
+        this.inputPort.push(target);
+    }
+    tick(game, agent){
+        console.log(blackBoard[this.inputPort[0]]);
+        return true;
+    }
+}
+
 export class GetTargetPositionNode extends BehaviorNode{
     constructor(targetPos){
         super();

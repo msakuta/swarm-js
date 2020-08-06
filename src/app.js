@@ -25,6 +25,9 @@ let mainTree = new BT.BehaviorTree(
             ])),
         new BT.IfNode(new BT.IsTargetFoundNode(),
             new BT.SequenceNode([
+                // new BT.SequenceNode([
+                //     new BT.PrintEntityNode("target"),
+                // ]),
                 new BT.GetTargetPositionNode("enemyPos"),
                 new BT.ShootBulletNode("enemyPos"),
             ])),
@@ -622,7 +625,8 @@ window.addEventListener('load', () => {
         const svgInternal = document.createElementNS(ns, "g");
         svg.appendChild(svgInternal);
 
-        const deferred = [];
+        const inputPorts = {};
+        const outputPorts = {};
 
         function renderNode(node, offset, parent){
             const nodeElement = document.createElementNS(ns, "g");
@@ -676,7 +680,7 @@ window.addEventListener('load', () => {
                 return ret;
             }
 
-            function addPortConnector([x, y], connectorColor){
+            function addPortConnector([x, y], connectorColor, portCollection, portName){
                 const portConnector = document.createElementNS(ns, "rect");
                 portConnector.setAttribute('x', x - 5);
                 portConnector.setAttribute('y', y - 10);
@@ -685,14 +689,23 @@ window.addEventListener('load', () => {
                 portConnector.setAttributeNS(null, 'fill', connectorColor);
                 portConnector.setAttributeNS(null, 'stroke', 'black');
                 nodeElement.appendChild(portConnector);
+                if(portName){
+                    if(!(portName in portCollection))
+                        portCollection[portName] = [];
+                    portCollection[portName].push({
+                        elem: portConnector,
+                        x: offset[0] + x,
+                        y: offset[1] + y - 5,
+                    });
+                }
             }
 
             node.inputPort
-                .map(portName => addPort(portName || "IN", "#afafff"))
-                .forEach(y => addPortConnector([0, y], "#7f7fff"));
+                .map(portName => [addPort(portName || "IN", "#afafff"), portName])
+                .forEach(([y, portName]) => addPortConnector([0, y], "#7f7fff", inputPorts, portName));
             node.outputPort
-                .map(portName => addPort(portName || "OUT", "#ffafaf"))
-                .forEach(y => addPortConnector([width, y], "#ff7f7f"));
+                .map(portName => [addPort(portName || "OUT", "#ffafaf"), portName])
+                .forEach(([y, portName]) => addPortConnector([width, y], "#ff7f7f", outputPorts, portName));
 
             rect.setAttributeNS(null, "width", width);
 
@@ -716,12 +729,27 @@ window.addEventListener('load', () => {
         }
 
         const size = renderSubTree(mainTree.rootNode, [20, 20]);
+
+        for(let key in inputPorts){
+            for(let inputPort of inputPorts[key]){
+                if(key in outputPorts){
+                    for(let outputPort of outputPorts[key]){
+                        const portConnector = document.createElementNS(ns, "path")
+                        portConnector.setAttribute("d", `M${inputPort.x} ${inputPort.y
+                            }C${inputPort.x + 12.5} ${inputPort.y
+                            },${outputPort.x - 12.5} ${outputPort.y},${outputPort.x},${outputPort.y}`);
+                        portConnector.setAttribute("stroke-width", "2");
+                        portConnector.setAttribute("stroke", "#7fff00");
+                        svgInternal.appendChild(portConnector);
+                    }
+                }
+            }
+        }
         const scale = 0.75;
         // We cannot apply transform to svg element itself because Edge doesn't support it.
         svg.setAttribute("width", (size[0] + 20) * scale);
         svg.setAttribute("height", (size[1] + 20) * scale);
         svgInternal.setAttribute("transform", `scale(${scale})`);
-        deferred.forEach(fn => fn());
     })();
 
     function frameProc(){
