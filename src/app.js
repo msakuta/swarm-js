@@ -420,11 +420,9 @@ window.addEventListener('load', () => {
             elem.addEventListener('mouseleave', endDrag);
             function startDrag(evt) {
                 selectedElement = evt.target;
-                console.log(`startDrag: ${selectedElement}: ${nodeInfo.node.name}`);
             }
             function drag(evt) {
                 if(selectedElement){
-                    console.log("drag");
                     evt.preventDefault();
                     var coord = getMousePosition(evt);
                     nodeInfo.position[0] = coord.x - elem.getAttribute("width") / 2;
@@ -439,12 +437,25 @@ window.addEventListener('load', () => {
                             childNode.parentConnector.setAttribute("d", getParentConnectorPath(
                                 nodeInfo.position, nodeInfo.rectElem, childNode.position, childNode.rectElem)));
                     }
+                    for(let connector of nodeInfo.inputPortConnectors){
+                        connector(inputPort => {
+                            inputPort.x = nodeInfo.position[0] + inputPort.deltaX;
+                            inputPort.y = nodeInfo.position[1] + inputPort.deltaY;
+                            return inputPort;
+                        });
+                    }
+                    for(let connector of nodeInfo.outputPortConnectors){
+                        connector(outputPort => {
+                            outputPort.x = nodeInfo.position[0] + outputPort.deltaX;
+                            outputPort.y = nodeInfo.position[1] + outputPort.deltaY;
+                            return outputPort;
+                        });
+                    }
                 }
             }
             function endDrag(evt) {
                 if(selectedElement){
                     selectedElement = null;
-                    console.log("endDrag");
                 }
             }
         }
@@ -540,6 +551,9 @@ window.addEventListener('load', () => {
                             elem: portConnector,
                             x: nodeInfo.position[0] + x,
                             y: nodeInfo.position[1] + y - 5,
+                            deltaX: x,
+                            deltaY: y - 5,
+                            nodeInfo,
                         });
                     }
                 }
@@ -568,6 +582,8 @@ window.addEventListener('load', () => {
                 position: offset,
                 parentConnector: null,
                 childNodes: [],
+                inputPortConnectors: [],
+                outputPortConnectors: [],
             };
             if(parentNode)
                 parentNode.childNodes.push(nodeInfo);
@@ -575,6 +591,7 @@ window.addEventListener('load', () => {
             const thisSize = renderNode(nodeInfo);
             const x = offset[0];
             const parentPos = [offset[0], offset[1]];
+            const X_SPACING = 20;
             const Y_SPACING = 20;
             let maxHeight = thisSize[1];
             for(let i = 0; i < children.length; i++){
@@ -583,7 +600,7 @@ window.addEventListener('load', () => {
                 parentPos[0] += width;
                 maxHeight = Math.max(maxHeight, thisSize[1] + 10 + height);
             }
-            return [Math.max(thisSize[0], parentPos[0] - x) + Y_SPACING, maxHeight + Y_SPACING];
+            return [Math.max(thisSize[0], parentPos[0] - x) + X_SPACING, maxHeight + Y_SPACING];
         }
 
         const size = renderSubTree(mainTree.rootNode, [20, 20]);
@@ -592,15 +609,22 @@ window.addEventListener('load', () => {
             for(let inputPort of inputPorts[key]){
                 if(key in outputPorts){
                     for(let outputPort of outputPorts[key]){
-                        const portConnector = document.createElementNS(ns, "path")
-                        portConnector.setAttribute("d", `M${inputPort.x} ${inputPort.y
-                            }C${inputPort.x - 20} ${inputPort.y
-                            },${outputPort.x + 20} ${outputPort.y
-                            },${outputPort.x},${outputPort.y}`);
+                        const portConnector = document.createElementNS(ns, "path");
+                        function setPath(inputPort, outputPort){
+                            portConnector.setAttribute("d", `M${inputPort.x} ${inputPort.y
+                                }C${inputPort.x - 20} ${inputPort.y
+                                },${outputPort.x + 20} ${outputPort.y
+                                },${outputPort.x},${outputPort.y}`);
+                        }
+                        setPath(inputPort, outputPort);
                         portConnector.setAttribute("stroke-width", "2");
                         portConnector.setAttribute("stroke", "#7fff00");
                         portConnector.setAttribute("fill", "none");
                         svgInternal.appendChild(portConnector);
+                        inputPort.nodeInfo.inputPortConnectors.push(callback =>
+                            setPath(callback(inputPort), outputPort));
+                        outputPort.nodeInfo.outputPortConnectors.push(callback =>
+                            setPath(inputPort, callback(outputPort)));
                     }
                 }
             }
