@@ -403,22 +403,85 @@ window.addEventListener('load', () => {
         const svgInternal = document.createElementNS(ns, "g");
         svg.appendChild(svgInternal);
 
+        function getMousePosition(evt) {
+            var CTM = svgInternal.getScreenCTM();
+            return {
+              x: (evt.clientX - CTM.e) / CTM.a,
+              y: (evt.clientY - CTM.f) / CTM.d
+            };
+        }
+
+        let selectedElement = null;
+
+        function makeDraggable(elem, nodeElement, nodeInfo) {
+            elem.addEventListener('mousedown', startDrag);
+            elem.addEventListener('mousemove', drag);
+            elem.addEventListener('mouseup', endDrag);
+            elem.addEventListener('mouseleave', endDrag);
+            function startDrag(evt) {
+                selectedElement = evt.target;
+                console.log(`startDrag: ${selectedElement}: ${nodeInfo.node.name}`);
+            }
+            function drag(evt) {
+                if(selectedElement){
+                    console.log("drag");
+                    evt.preventDefault();
+                    var coord = getMousePosition(evt);
+                    nodeInfo.position[0] = coord.x - elem.getAttribute("width") / 2;
+                    nodeInfo.position[1] = coord.y - elem.getAttribute("height") / 2;
+                    nodeElement.setAttribute("transform", `translate(${nodeInfo.position[0]}, ${nodeInfo.position[1]})`);
+                    if(nodeInfo.parentConnector)
+                        nodeInfo.parentConnector.setAttribute("d", getParentConnectorPath(
+                            nodeInfo.parentNode.position, nodeInfo.parentNode.rectElem,
+                            nodeInfo.position, nodeInfo.rectElem));
+                    if(nodeInfo.childNodes){
+                        nodeInfo.childNodes.forEach(childNode =>
+                            childNode.parentConnector.setAttribute("d", getParentConnectorPath(
+                                nodeInfo.position, nodeInfo.rectElem, childNode.position, childNode.rectElem)));
+                    }
+                }
+            }
+            function endDrag(evt) {
+                if(selectedElement){
+                    selectedElement = null;
+                    console.log("endDrag");
+                }
+            }
+        }
+
+        function getParentConnectorPath(parent, parentElem, child, childElem){
+            const parentHalfWidth = parentElem.getAttribute("width") / 2;
+            const childHalfWidth = childElem ? childElem.getAttribute("width") / 2 : 60;
+            return `M${parent[0] + parentHalfWidth} ${parent[1] + 25
+                }C${parent[0] + parentHalfWidth} ${parent[1]+45
+                },${child[0] + childHalfWidth} ${child[1]-15
+                },${child[0] + childHalfWidth},${child[1]}`;
+        }
+
         const inputPorts = {};
         const outputPorts = {};
+        const deferred = [];
 
-        function renderNode(node, offset, parent){
+        function renderNode(nodeInfo){
+            const {node} = nodeInfo;
             const nodeElement = document.createElementNS(ns, "g");
             nodeElement.setAttributeNS(null, 'width', 100);
             nodeElement.setAttributeNS(null, 'height', 25);
             svgInternal.appendChild(nodeElement);
-            if(parent){
-                const parentConnector = document.createElementNS(ns, "path");
-                parentConnector.setAttribute("d", `M${parent[0]} ${parent[1] + 25
-                    }C${parent[0]} ${parent[1]+45
-                    },${offset[0] + 60} ${offset[1]-15},${offset[0] + 60},${offset[1]}`);
-                parentConnector.setAttribute("stroke-width", 4);
-                parentConnector.setAttribute("stroke", "#ff0000");
-                svgInternal.appendChild(parentConnector);
+            let parentConnector = null;
+            if(nodeInfo.parentNode){
+                deferred.push(() => {
+                    parentConnector = document.createElementNS(ns, "path");
+                    parentConnector.setAttribute("d", getParentConnectorPath(
+                        nodeInfo.parentNode.position, nodeInfo.parentNode.rectElem,
+                        nodeInfo.position, nodeInfo.rectElem));
+                    parentConnector.setAttribute("stroke-width", 4);
+                    parentConnector.setAttribute("stroke", "#ff0000");
+                    parentConnector.setAttribute("fill", "none");
+                    parentConnector.setAttribute("class", "nondraggable");
+                    nodeInfo.parentConnector = parentConnector;
+                    svgInternal.appendChild(parentConnector);
+                });
             }
             const rect = document.createElementNS(ns, "rect");
             rect.setAttributeNS(null, "class", "draggable");
@@ -426,6 +489,7 @@ window.addEventListener('load', () => {
             rect.setAttributeNS(null, 'height', 25 + (node.inputPort.length + node.outputPort.length) * 20);
             rect.setAttributeNS(null, 'fill', node instanceof BT.IfNode ? '#7f7f00' :
                 node.enumerateChildren().length ? '#007f00' : '#f06');
+            nodeInfo.rectElem = rect;
             nodeElement.appendChild(rect);
             const text = document.createElementNS(ns, "text");
             text.setAttribute('x', '10');
@@ -474,8 +538,8 @@ window.addEventListener('load', () => {
                             portCollection[portName] = [];
                         portCollection[portName].push({
                             elem: portConnector,
-                            x: offset[0] + x,
-                            y: offset[1] + y - 5,
+                            x: nodeInfo.position[0] + x,
+                            y: nodeInfo.position[1] + y - 5,
                         });
                     }
                 }
@@ -490,23 +554,36 @@ window.addEventListener('load', () => {
 
             rect.setAttributeNS(null, "width", width);
 
-            nodeElement.setAttribute("transform", `translate(${offset[0]}, ${offset[1]})`);
+            nodeElement.setAttribute("transform", `translate(${nodeInfo.position[0]}, ${nodeInfo.position[1]})`);
+
+            makeDraggable(rect, nodeElement, nodeInfo);
 
             return [width, y];
         }
 
-        function renderSubTree(node, offset, parent){
+        function renderSubTree(node, offset, parentNode=null){
+            let nodeInfo = {
+                node,
+                parentNode,
+                position: offset,
+                parentConnector: null,
+                childNodes: [],
+            };
+            if(parentNode)
+                parentNode.childNodes.push(nodeInfo);
             const children = node.enumerateChildren();
-            const thisSize = renderNode(node, offset, parent);
+            const thisSize = renderNode(nodeInfo);
             const x = offset[0];
-            const parentPos = [offset[0] + 60, offset[1]];
+            const parentPos = [offset[0], offset[1]];
+            const Y_SPACING = 20;
             let maxHeight = thisSize[1];
             for(let i = 0; i < children.length; i++){
-                const [width, height] = renderSubTree(children[i], [offset[0], offset[1] + 50], parentPos);
-                offset[0] += width;
+                const [width, height] = renderSubTree(children[i], [parentPos[0], parentPos[1] + thisSize[1] + Y_SPACING],
+                    nodeInfo);
+                parentPos[0] += width;
                 maxHeight = Math.max(maxHeight, thisSize[1] + 10 + height);
             }
-            return [Math.max(thisSize[0], offset[0] - x) + 20, maxHeight];
+            return [Math.max(thisSize[0], parentPos[0] - x) + Y_SPACING, maxHeight + Y_SPACING];
         }
 
         const size = renderSubTree(mainTree.rootNode, [20, 20]);
@@ -533,6 +610,7 @@ window.addEventListener('load', () => {
         svg.setAttribute("width", (size[0] + 20) * scale);
         svg.setAttribute("height", (size[1] + 20) * scale);
         svgInternal.setAttribute("transform", `scale(${scale})`);
+        deferred.forEach(entry => entry());
     })();
 
     function frameProc(){
