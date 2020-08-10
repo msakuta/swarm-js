@@ -586,20 +586,54 @@ window.addEventListener('load', () => {
             let width = Math.max(100, bbox.width + 20);
 
             let y = 40;
-            function addPort(name, textColor){
+            function addPort(name, textColor, portCollection, portX, writer, reader){
                 const portText = document.createElementNS(ns, "text");
                 portText.setAttribute('x', 10);
                 portText.setAttribute('y', y);
                 portText.setAttribute('font-size','16');
                 portText.style.fill = textColor;
-                portText.setAttribute("class", "noselect");
                 portText.textContent = name;
+                const portPosition = [portX, y];
+                portText.addEventListener("click", (evt) => {
+                    const inputField = document.createElement("input");
+                    inputField.value = portText.textContent;
+                    inputField.style.position = "absolute";
+                    const containerBBox = container.getBoundingClientRect();
+                    const bbox = portText.getBoundingClientRect();
+                    inputField.style.left = `${bbox.x - containerBBox.x}px`;
+                    inputField.style.top = `${bbox.y - containerBBox.y}px`;
+                    inputField.onkeydown = event => {
+                        if(event.keyCode === 13){ // enter
+                            portText.textContent = inputField.value;
+                            removePortConnector(portCollection, reader());
+                            writer(inputField.value);
+                            addPortConnectorCollection(portPosition, portCollection, inputField.value);
+                            updateConnection();
+                            cleanup();
+                            event.preventDefault();
+                        }
+                        else if(event.keyCode === 27){ // escape
+                            cleanup();
+                        }
+                        return true;
+                    }
+                    const mouseDownEvent = event => {
+                        cleanup();
+                    };
+                    function cleanup(){
+                        inputField.remove();
+                        svg.removeEventListener("click", mouseDownEvent);
+                    }
+                    container.appendChild(inputField);
+                    inputField.focus();
+                    svg.addEventListener("mousedown", mouseDownEvent);
+                    evt.stopPropagation();
+                });
                 nodeElement.appendChild(portText);
                 const bbox = portText.getBBox();
                 width = Math.max(width, bbox.width + 20);
-                const ret = y;
                 y += 20;
-                return ret;
+                return portPosition;
             }
 
             function addPortConnector([x, y], connectorColor, portCollection, portValue){
@@ -611,13 +645,16 @@ window.addEventListener('load', () => {
                 portConnector.setAttributeNS(null, 'fill', connectorColor);
                 portConnector.setAttributeNS(null, 'stroke', 'black');
                 nodeElement.appendChild(portConnector);
+                addPortConnectorCollection([x, y], portCollection, portValue);
+            }
+
+            function addPortConnectorCollection([x, y], portCollection, portValue){
                 if(portValue){
                     if(portValue[0] === "{" && portValue[portValue.length-1] === "}"){
                         const portName = portValue.substr(1, portValue.length-2);
                         if(!(portName in portCollection))
                             portCollection[portName] = [];
                         portCollection[portName].push({
-                            elem: portConnector,
                             x: nodeInfo.position[0] + x,
                             y: nodeInfo.position[1] + y - 5,
                             deltaX: x,
@@ -628,12 +665,30 @@ window.addEventListener('load', () => {
                 }
             }
 
+            function removePortConnector(portCollection, portValue){
+                if(portValue){
+                    if(portValue[0] === "{" && portValue[portValue.length-1] === "}"){
+                        const portName = portValue.substr(1, portValue.length-2);
+                        if(!(portName in portCollection))
+                            return;
+                        const array = portCollection[portName];
+                        const deleteIndex = array.findIndex(value => value.nodeInfo === nodeInfo);
+                        if(array[deleteIndex].elem){
+                            array[deleteIndex].elem.remove();
+                        }
+                        array.splice(deleteIndex, 1);
+                    }
+                }
+            }
+
             node.inputPort
-                .map(portValue => [addPort(portValue || "IN", "#afafff"), portValue])
-                .forEach(([y, portValue]) => addPortConnector([0, y], "#7f7fff", inputPorts, portValue));
+                .map((portValue, index) => [addPort(portValue || "IN", "#afafff", inputPorts, 0,
+                    value => node.inputPort[index] = value, () => node.inputPort[index]), portValue])
+                .forEach(([position, portValue]) => addPortConnector(position, "#7f7fff", inputPorts, portValue));
             node.outputPort
-                .map(portValue => [addPort(portValue || "OUT", "#ffafaf"), portValue])
-                .forEach(([y, portValue]) => addPortConnector([width, y], "#ff7f7f", outputPorts, portValue));
+                .map((portValue, index) => [addPort(portValue || "OUT", "#ffafaf", outputPorts, width,
+                    value => node.outputPort[index] = value, () => node.outputPort[index]), portValue])
+                .forEach(([position, portValue]) => addPortConnector(position, "#ff7f7f", outputPorts, portValue));
 
             rect.setAttributeNS(null, "width", width);
             nodeInfo.width = width;
@@ -679,31 +734,51 @@ window.addEventListener('load', () => {
 
         const size = renderSubTree(mainTree.rootNode, [20, 20]);
 
-        for(let key in inputPorts){
-            for(let inputPort of inputPorts[key]){
-                if(key in outputPorts){
-                    for(let outputPort of outputPorts[key]){
-                        const portConnector = document.createElementNS(ns, "path");
-                        function setPath(inputPort, outputPort){
-                            portConnector.setAttribute("d", `M${inputPort.x} ${inputPort.y
-                                }C${inputPort.x - 20} ${inputPort.y
-                                },${outputPort.x + 20} ${outputPort.y
-                                },${outputPort.x},${outputPort.y}`);
+        const connections = [];
+        function updateConnection(){
+            for(let connection of connections)
+                connection.remove();
+            const clear = array => array.splice(0, array.length);
+            clear(connections);
+
+            // Clear existing move handlers
+            for(let key in inputPorts)
+                for(let inputPort of inputPorts[key])
+                    clear(inputPort.nodeInfo.inputPortConnectors);
+            for(let key in outputPorts)
+                for(let outputPort of outputPorts[key])
+                    clear(outputPort.nodeInfo.inputPortConnectors);
+
+            for(let key in inputPorts){
+                for(let inputPort of inputPorts[key]){
+                    if(key in outputPorts){
+                        for(let outputPort of outputPorts[key]){
+                            const portConnector = document.createElementNS(ns, "path");
+                            function setPath(inputPort, outputPort){
+                                portConnector.setAttribute("d", `M${inputPort.x} ${inputPort.y
+                                    }C${inputPort.x - 20} ${inputPort.y
+                                    },${outputPort.x + 20} ${outputPort.y
+                                    },${outputPort.x},${outputPort.y}`);
+                            }
+                            setPath(inputPort, outputPort);
+                            portConnector.setAttribute("stroke-width", "2");
+                            portConnector.setAttribute("stroke", "#7fff00");
+                            portConnector.setAttribute("fill", "none");
+                            portConnector.setAttribute("class", "nondraggable");
+                            svgInternal.appendChild(portConnector);
+                            connections.push(portConnector);
+                            inputPort.nodeInfo.inputPortConnectors.push(callback =>
+                                setPath(callback(inputPort), outputPort));
+                            outputPort.nodeInfo.outputPortConnectors.push(callback =>
+                                setPath(inputPort, callback(outputPort)));
                         }
-                        setPath(inputPort, outputPort);
-                        portConnector.setAttribute("stroke-width", "2");
-                        portConnector.setAttribute("stroke", "#7fff00");
-                        portConnector.setAttribute("fill", "none");
-                        portConnector.setAttribute("class", "nondraggable");
-                        svgInternal.appendChild(portConnector);
-                        inputPort.nodeInfo.inputPortConnectors.push(callback =>
-                            setPath(callback(inputPort), outputPort));
-                        outputPort.nodeInfo.outputPortConnectors.push(callback =>
-                            setPath(inputPort, callback(outputPort)));
                     }
                 }
             }
         }
+
+        updateConnection();
+
         const scale = 0.75;
         // We cannot apply transform to svg element itself because Edge doesn't support it.
         svg.setAttribute("width", (size[0] + 20) * scale);
