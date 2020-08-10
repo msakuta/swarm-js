@@ -411,9 +411,18 @@ window.addEventListener('load', () => {
             };
         }
 
+        function getNodeText(nodeInfo, nodeIndex){
+            let node = nodeInfo.node;
+            let nodeName = node.name;
+            if(nodeName.substr(nodeName.length-4) === "Node")
+                nodeName = nodeName.substr(0, nodeName.length-4);
+            return `[${nodeIndex}] ${nodeName}`;
+        }
+
         let selectedElement = null;
         let offset;
         let nodeMap = [];
+        let reordering = null;
 
         function makeDraggable(nodeInfo) {
             nodeInfo.rectElement.setAttributeNS(null, "class", "draggable");
@@ -443,6 +452,24 @@ window.addEventListener('load', () => {
                     nodeInfo.position[0] = coord.x - offset.x;
                     nodeInfo.position[1] = coord.y - offset.y;
                     nodeInfo.nodeElement.setAttribute("transform", `translate(${nodeInfo.position[0]}, ${nodeInfo.position[1]})`);
+                    // Try reordering among siblings
+                    if(nodeInfo.parentNode){
+                        const currentIndex = nodeInfo.parentNode.childNodes.indexOf(nodeInfo);
+                        for(let i = 0; i < currentIndex; i++){
+                            if(nodeInfo.position[0] < nodeInfo.parentNode.childNodes[i].position[0]){
+                                reordering = i;
+                                console.log(`Reordering ${currentIndex} -> ${i}`);
+                                break;
+                            }
+                        }
+                        for(let i = currentIndex + 1; i < nodeInfo.parentNode.childNodes.length; i++){
+                            if(nodeInfo.parentNode.childNodes[i].position[0] + nodeInfo.parentNode.childNodes[i].width < nodeInfo.position[0]){
+                                reordering = i+1;
+                                console.log(`Reordering ${currentIndex} -> ${i}`);
+                                break;
+                            }
+                        }
+                    }
                     if(nodeInfo.parentConnector)
                         nodeInfo.parentConnector.setAttribute("d", getParentConnectorPath(
                             nodeInfo.parentNode.position, nodeInfo.parentNode.rectElement,
@@ -470,6 +497,33 @@ window.addEventListener('load', () => {
             }
             function endDrag(evt) {
                 if(selectedElement){
+                    if(reordering !== null){
+                        const nodeInfo = selectedElement;
+                        const currentIndex = nodeInfo.parentNode.childNodes.indexOf(nodeInfo);
+                        if(reordering < currentIndex){
+                            nodeInfo.parentNode.childNodes.splice(currentIndex, 1);
+                            nodeInfo.parentNode.childNodes.splice(reordering, 0, nodeInfo);
+                            nodeInfo.parentNode.node.spliceChild(currentIndex, 1);
+                            nodeInfo.parentNode.node.spliceChild(reordering, 0, nodeInfo.node);
+                            }
+                        else{
+                            nodeInfo.parentNode.childNodes.splice(reordering, 0, nodeInfo);
+                            nodeInfo.parentNode.childNodes.splice(currentIndex, 1);
+                            nodeInfo.parentNode.node.spliceChild(reordering, 0, nodeInfo.node);
+                            nodeInfo.parentNode.node.spliceChild(currentIndex, 1);
+                        }
+                        function retext(nodeInfo, nodeIndex){
+                            nodeInfo.textElement.textContent = getNodeText(nodeInfo, nodeIndex);
+                            for(let i = 0; i < nodeInfo.childNodes.length; i++)
+                                retext(nodeInfo.childNodes[i], i);
+                        }
+                        let rootNode = nodeInfo.parentNode;
+                        while(rootNode.parentNode)
+                            rootNode = rootNode.parentNode;
+                        retext(rootNode, 0);
+                        console.log(`Reordered ${currentIndex} -> ${reordering}`);
+                    }
+                    reordering = null;
                     selectedElement = null;
                 }
             }
@@ -523,13 +577,11 @@ window.addEventListener('load', () => {
             text.setAttribute('x', '10');
             text.setAttribute('y', '20');
             text.setAttribute('font-size','18');
-            let nodeName = node.name;
-            if(nodeName.substr(nodeName.length-4) === "Node")
-                nodeName = nodeName.substr(0, nodeName.length-4);
-            text.textContent = `[${nodeIndex}] ${nodeName}`;
+            text.textContent = getNodeText(nodeInfo, nodeIndex);
             text.setAttribute("class", "noselect");
             text.style.fill = "white";
             nodeElement.appendChild(text);
+            nodeInfo.textElement = text;
             const bbox = text.getBBox();
             let width = Math.max(100, bbox.width + 20);
 
@@ -584,6 +636,7 @@ window.addEventListener('load', () => {
                 .forEach(([y, portValue]) => addPortConnector([width, y], "#ff7f7f", outputPorts, portValue));
 
             rect.setAttributeNS(null, "width", width);
+            nodeInfo.width = width;
 
             nodeElement.setAttribute("transform", `translate(${nodeInfo.position[0]}, ${nodeInfo.position[1]})`);
 
@@ -603,6 +656,8 @@ window.addEventListener('load', () => {
                 outputPortConnectors: [],
                 nodeElement: null,
                 rectElement: null,
+                textElement: null,
+                width: 0,
             };
             if(parentNode)
                 parentNode.childNodes.push(nodeInfo);
