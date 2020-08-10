@@ -594,15 +594,14 @@ window.addEventListener('load', () => {
                     const nodeInfo = currentConnector;
                     nodeInfo.childConnector.remove();
                     nodeInfo.childConnector = null;
-                    currentConnector = null;
                     if(targetConnector){
                         if(targetConnector.parentNode){
                             targetConnector.parentNode.childNodes.splice(
                                 targetConnector.parentNode.childNodes.indexOf(targetConnector), 1);
                             targetConnector.parentConnector.remove();
+                            targetConnector.parentNode.node.spliceChild(
+                                targetConnector.parentNode.node.enumerateChildren().indexOf(targetConnector.node), 1);
                         }
-                        targetConnector.parentNode.node.spliceChild(
-                            targetConnector.parentNode.node.enumerateChildren().indexOf(targetConnector.node), 1);
                         targetConnector.parentNode = currentConnector;
                         const parentConnector = document.createElementNS(ns, "path");
                         parentConnector.setAttribute("d", getParentConnectorPath(
@@ -614,10 +613,12 @@ window.addEventListener('load', () => {
                         parentConnector.setAttribute("class", "nondraggable");
                         targetConnector.parentConnector = parentConnector;
                         targetConnector.parentNode = nodeInfo;
+                        currentConnector.childNodes.unshift(targetConnector);
                         nodeInfo.node.spliceChild(0, 0, targetConnector.node);
                         svgInternal.appendChild(parentConnector);
                         targetConnector.parentConnectPort.setAttribute("stroke", "#003f3f");
                     }
+                    currentConnector = null;
                     targetConnector = null;
                 }
             }
