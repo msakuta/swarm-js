@@ -412,30 +412,45 @@ window.addEventListener('load', () => {
         }
 
         let selectedElement = null;
+        let offset;
+        let nodeMap = [];
 
-        function makeDraggable(elem, nodeElement, nodeInfo) {
-            elem.addEventListener('mousedown', startDrag);
-            elem.addEventListener('mousemove', drag);
-            elem.addEventListener('mouseup', endDrag);
-            elem.addEventListener('mouseleave', endDrag);
+        function makeDraggable(nodeInfo) {
+            nodeInfo.rectElement.setAttributeNS(null, "class", "draggable");
+            nodeMap.push(nodeInfo);
+        }
+
+        (function makeDraggablePrepare(){
+            svgInternal.addEventListener('mousedown', startDrag);
+            svgInternal.addEventListener('mousemove', drag);
+            svgInternal.addEventListener('mouseup', endDrag);
+            svgInternal.addEventListener('mouseleave', endDrag);
             function startDrag(evt) {
-                selectedElement = evt.target;
+                if (evt.target.classList.contains('draggable')) {
+                    selectedElement = nodeMap.find(nodeInfo => nodeInfo.rectElement === evt.target);
+                    if(!selectedElement)
+                        return;
+                    offset = getMousePosition(evt);
+                    offset.x -= selectedElement.position[0];
+                    offset.y -= selectedElement.position[1];
+                }
             }
             function drag(evt) {
                 if(selectedElement){
+                    const nodeInfo = selectedElement;
                     evt.preventDefault();
                     var coord = getMousePosition(evt);
-                    nodeInfo.position[0] = coord.x - elem.getAttribute("width") / 2;
-                    nodeInfo.position[1] = coord.y - elem.getAttribute("height") / 2;
-                    nodeElement.setAttribute("transform", `translate(${nodeInfo.position[0]}, ${nodeInfo.position[1]})`);
+                    nodeInfo.position[0] = coord.x - offset.x;
+                    nodeInfo.position[1] = coord.y - offset.y;
+                    nodeInfo.nodeElement.setAttribute("transform", `translate(${nodeInfo.position[0]}, ${nodeInfo.position[1]})`);
                     if(nodeInfo.parentConnector)
                         nodeInfo.parentConnector.setAttribute("d", getParentConnectorPath(
-                            nodeInfo.parentNode.position, nodeInfo.parentNode.rectElem,
-                            nodeInfo.position, nodeInfo.rectElem));
+                            nodeInfo.parentNode.position, nodeInfo.parentNode.rectElement,
+                            nodeInfo.position, nodeInfo.rectElement));
                     if(nodeInfo.childNodes){
                         nodeInfo.childNodes.forEach(childNode =>
                             childNode.parentConnector.setAttribute("d", getParentConnectorPath(
-                                nodeInfo.position, nodeInfo.rectElem, childNode.position, childNode.rectElem)));
+                                nodeInfo.position, nodeInfo.rectElement, childNode.position, childNode.rectElement)));
                     }
                     for(let connector of nodeInfo.inputPortConnectors){
                         connector(inputPort => {
@@ -458,7 +473,7 @@ window.addEventListener('load', () => {
                     selectedElement = null;
                 }
             }
-        }
+        })();
 
         function getParentConnectorPath(parent, parentElem, child, childElem){
             const parentHalfWidth = parentElem.getAttribute("width") / 2;
@@ -473,19 +488,20 @@ window.addEventListener('load', () => {
         const outputPorts = {};
         const deferred = [];
 
-        function renderNode(nodeInfo){
+        function renderNode(nodeInfo, nodeIndex){
             const {node} = nodeInfo;
             const nodeElement = document.createElementNS(ns, "g");
             nodeElement.setAttributeNS(null, 'width', 100);
             nodeElement.setAttributeNS(null, 'height', 25);
             svgInternal.appendChild(nodeElement);
+            nodeInfo.nodeElement = nodeElement;
             let parentConnector = null;
             if(nodeInfo.parentNode){
                 deferred.push(() => {
                     parentConnector = document.createElementNS(ns, "path");
                     parentConnector.setAttribute("d", getParentConnectorPath(
-                        nodeInfo.parentNode.position, nodeInfo.parentNode.rectElem,
-                        nodeInfo.position, nodeInfo.rectElem));
+                        nodeInfo.parentNode.position, nodeInfo.parentNode.rectElement,
+                        nodeInfo.position, nodeInfo.rectElement));
                     parentConnector.setAttribute("stroke-width", 4);
                     parentConnector.setAttribute("stroke", "#ff0000");
                     parentConnector.setAttribute("fill", "none");
@@ -495,12 +511,13 @@ window.addEventListener('load', () => {
                 });
             }
             const rect = document.createElementNS(ns, "rect");
-            rect.setAttributeNS(null, "class", "draggable");
             rect.setAttributeNS(null, 'width', 100);
             rect.setAttributeNS(null, 'height', 25 + (node.inputPort.length + node.outputPort.length) * 20);
             rect.setAttributeNS(null, 'fill', node instanceof BT.IfNode ? '#7f7f00' :
                 node.enumerateChildren().length ? '#007f00' : '#f06');
-            nodeInfo.rectElem = rect;
+            rect.setAttributeNS(null, "stroke-width", 2);
+            rect.setAttributeNS(null, "stroke", "#000");
+            nodeInfo.rectElement = rect;
             nodeElement.appendChild(rect);
             const text = document.createElementNS(ns, "text");
             text.setAttribute('x', '10');
@@ -509,7 +526,7 @@ window.addEventListener('load', () => {
             let nodeName = node.name;
             if(nodeName.substr(nodeName.length-4) === "Node")
                 nodeName = nodeName.substr(0, nodeName.length-4);
-            text.textContent = nodeName;
+            text.textContent = `[${nodeIndex}] ${nodeName}`;
             text.setAttribute("class", "noselect");
             text.style.fill = "white";
             nodeElement.appendChild(text);
@@ -570,12 +587,12 @@ window.addEventListener('load', () => {
 
             nodeElement.setAttribute("transform", `translate(${nodeInfo.position[0]}, ${nodeInfo.position[1]})`);
 
-            makeDraggable(rect, nodeElement, nodeInfo);
+            makeDraggable(nodeInfo);
 
             return [width, y];
         }
 
-        function renderSubTree(node, offset, parentNode=null){
+        function renderSubTree(node, offset, parentNode=null, nodeIndex=0){
             let nodeInfo = {
                 node,
                 parentNode,
@@ -584,11 +601,13 @@ window.addEventListener('load', () => {
                 childNodes: [],
                 inputPortConnectors: [],
                 outputPortConnectors: [],
+                nodeElement: null,
+                rectElement: null,
             };
             if(parentNode)
                 parentNode.childNodes.push(nodeInfo);
             const children = node.enumerateChildren();
-            const thisSize = renderNode(nodeInfo);
+            const thisSize = renderNode(nodeInfo, nodeIndex);
             const x = offset[0];
             const parentPos = [offset[0], offset[1]];
             const X_SPACING = 20;
@@ -596,7 +615,7 @@ window.addEventListener('load', () => {
             let maxHeight = thisSize[1];
             for(let i = 0; i < children.length; i++){
                 const [width, height] = renderSubTree(children[i], [parentPos[0], parentPos[1] + thisSize[1] + Y_SPACING],
-                    nodeInfo);
+                    nodeInfo, i);
                 parentPos[0] += width;
                 maxHeight = Math.max(maxHeight, thisSize[1] + 10 + height);
             }
@@ -620,6 +639,7 @@ window.addEventListener('load', () => {
                         portConnector.setAttribute("stroke-width", "2");
                         portConnector.setAttribute("stroke", "#7fff00");
                         portConnector.setAttribute("fill", "none");
+                        portConnector.setAttribute("class", "nondraggable");
                         svgInternal.appendChild(portConnector);
                         inputPort.nodeInfo.inputPortConnectors.push(callback =>
                             setPath(callback(inputPort), outputPort));
