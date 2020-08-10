@@ -434,10 +434,10 @@ window.addEventListener('load', () => {
         }
 
         (function makeDraggablePrepare(){
-            svgInternal.addEventListener('mousedown', startDrag);
-            svgInternal.addEventListener('mousemove', drag);
-            svgInternal.addEventListener('mouseup', endDrag);
-            svgInternal.addEventListener('mouseleave', endDrag);
+            svg.addEventListener('mousedown', startDrag);
+            svg.addEventListener('mousemove', drag);
+            svg.addEventListener('mouseup', endDrag);
+            svg.addEventListener('mouseleave', endDrag);
             function startDrag(evt) {
                 if (evt.target.classList.contains('draggable')) {
                     selectedElement = nodeMap.find(nodeInfo => nodeInfo.rectElement === evt.target);
