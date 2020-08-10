@@ -43,6 +43,9 @@ export class BehaviorNode{
     enumerateChildren(){
         return [];
     }
+    spliceChild(index, deleteCount, insert){
+        return false;
+    }
 }
 
 export class SequenceNode extends BehaviorNode{
@@ -68,14 +71,19 @@ export class SequenceNode extends BehaviorNode{
     enumerateChildren(){
         return this.children;
     }
+    spliceChild(index, deleteCount, insert){
+        if(insert)
+            this.children.splice(index, deleteCount, insert);
+        else
+            this.children.splice(index, deleteCount);
+        return true;
+    }
 }
 
-export class ReactiveSequenceNode extends BehaviorNode{
+export class ReactiveSequenceNode extends SequenceNode{
     constructor(children){
-        super();
+        super(children);
         this.name = "ReactiveSequence";
-        this.children = children;
-        this.state = 0;
     }
     tick(context){
         for(; this.state < this.children.length; this.state++){
@@ -91,9 +99,6 @@ export class ReactiveSequenceNode extends BehaviorNode{
         }
         this.state = 0;
         return true;
-    }
-    enumerateChildren(){
-        return this.children;
     }
 }
 
@@ -237,6 +242,59 @@ export class IfNode extends BehaviorNode{
         if(this.elseNode)
             ret.push(this.elseNode);
         return ret;
+    }
+    spliceChild(index, deleteCount, insert){
+        if(!!this.condition + !!this.then + !!this.elseNode - deleteCount + !!insert <= 3){
+            if(index === 0){
+                if(0 < deleteCount){
+                    this.condition = undefined;
+                    if(insert)
+                        this.condition = insert;
+                    else if(1 === deleteCount){
+                        this.condition = this.then;
+                        this.elseNode = undefined;
+                    }
+                }
+                if(1 < deleteCount){
+                    this.then = undefined;
+                    if(!insert && deleteCount === 2){
+                        this.condition = this.elseNode;
+                        this.elseNode = undefined;
+                    }
+                }
+                if(2 < deleteCount)
+                    this.elseNode = undefined;
+                if(insert){
+                    this.elseNode = this.then;
+                    this.then = this.condition;
+                }
+                this.condition = insert;
+            }
+            if(index === 1){
+                if(0 < deleteCount){
+                    this.then = undefined;
+                    if(insert)
+                        this.then = insert;
+                    else if(1 === deleteCount){
+                        this.then = this.elseNode;
+                        this.elseNode = undefined;
+                    }
+                }
+                if(1 < deleteCount){
+                    this.elseNode = undefined;
+                }
+                if(insert)
+                    this.elseNode = this.then;
+                this.then = insert;
+            }
+            if(index === 2){
+                if(0 < deleteCount)
+                    this.elseNode = undefined;
+                this.elseNode = insert;
+            }
+            return true;
+        }
+        return false;
     }
 }
 

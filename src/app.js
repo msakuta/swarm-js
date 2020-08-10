@@ -391,7 +391,7 @@ window.addEventListener('load', () => {
 
     genImage();
 
-    (function renderTree(){
+    function renderTree(){
         const ns = 'http://www.w3.org/2000/svg';
         const container = $("#treeContainer")[0];
         const svg = document.createElementNS(ns, "svg");
@@ -399,7 +399,7 @@ window.addEventListener('load', () => {
         svg.setAttributeNS(null, "height", 600);
         // Adding svg and nodes first and then adjust attributes may not be optimal in terms of DOM manipulation
         // and rendering, but we need it to compute text widths on the browser window.
-        container.appendChild(svg);
+        $(container).prepend(svg);
         const svgInternal = document.createElementNS(ns, "g");
         svg.appendChild(svgInternal);
 
@@ -710,7 +710,20 @@ window.addEventListener('load', () => {
         svg.setAttribute("height", (size[1] + 20) * scale);
         svgInternal.setAttribute("transform", `scale(${scale})`);
         deferred.forEach(entry => entry());
-    })();
+
+    }
+
+    renderTree();
+
+    const container = $("#treeContainer")[0];
+    const reorderButton = document.createElement("input");
+    reorderButton.type = "button";
+    reorderButton.onclick = () => {
+        $(container).children().remove("svg");
+        renderTree();
+    };
+    reorderButton.value = "Reorder";
+    container.appendChild(reorderButton);
 
     function frameProc(){
         game.animate();
