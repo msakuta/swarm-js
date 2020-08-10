@@ -409,10 +409,10 @@ window.addEventListener('load', () => {
 
         function getMousePosition(evt) {
             var CTM = svgInternal.getScreenCTM();
-            return {
-              x: (evt.clientX - CTM.e) / CTM.a,
-              y: (evt.clientY - CTM.f) / CTM.d
-            };
+            return [
+              (evt.clientX - CTM.e) / CTM.a,
+              (evt.clientY - CTM.f) / CTM.d
+            ];
         }
 
         function getNodeText(nodeInfo, nodeIndex){
@@ -444,8 +444,8 @@ window.addEventListener('load', () => {
                     if(!selectedElement)
                         return;
                     offset = getMousePosition(evt);
-                    offset.x -= selectedElement.position[0];
-                    offset.y -= selectedElement.position[1];
+                    offset[0] -= selectedElement.position[0];
+                    offset[1] -= selectedElement.position[1];
                 }
             }
             function drag(evt) {
@@ -453,8 +453,8 @@ window.addEventListener('load', () => {
                     const nodeInfo = selectedElement;
                     evt.preventDefault();
                     var coord = getMousePosition(evt);
-                    nodeInfo.position[0] = coord.x - offset.x;
-                    nodeInfo.position[1] = coord.y - offset.y;
+                    nodeInfo.position[0] = coord[0] - offset[0];
+                    nodeInfo.position[1] = coord[1] - offset[1];
                     nodeInfo.nodeElement.setAttribute("transform", `translate(${nodeInfo.position[0]}, ${nodeInfo.position[1]})`);
                     // Try reordering among siblings
                     if(nodeInfo.parentNode){
@@ -533,9 +533,51 @@ window.addEventListener('load', () => {
             }
         })();
 
+        (function makeChildPortDraggablePrepare(){
+            svg.addEventListener('mousedown', startDrag);
+            svg.addEventListener('mousemove', drag);
+            svg.addEventListener('mouseup', endDrag);
+            svg.addEventListener('mouseleave', endDrag);
+            let currentConnector;
+            function startDrag(event){
+                if(event.target.classList.contains('childConnectPort')){
+                    const nodeInfo = nodeMap.find(nodeInfo => nodeInfo.childConnectPort === event.target)
+                    const mouse = getMousePosition(event);
+                    const childConnector = document.createElementNS(ns, "path");
+                    childConnector.setAttribute("d", getParentConnectorPath(
+                        nodeInfo.position, nodeInfo.rectElement,
+                        mouse, null));
+                    childConnector.setAttribute("stroke-width", 4);
+                    childConnector.setAttribute("stroke", "#ff0000");
+                    childConnector.setAttribute("fill", "none");
+                    childConnector.setAttribute("class", "nondraggable");
+                    svgInternal.appendChild(childConnector);
+                    nodeInfo.childConnector = childConnector;
+                    currentConnector = nodeInfo;
+                }
+            }
+            function drag(event){
+                if(currentConnector){
+                    const nodeInfo = currentConnector;
+                    const mouse = getMousePosition(event);
+                    nodeInfo.childConnector.setAttribute("d", getParentConnectorPath(
+                        nodeInfo.position, nodeInfo.rectElement, mouse, null));
+                }
+            }
+            function endDrag(_event){
+                if(currentConnector){
+                    const nodeInfo = currentConnector;
+                    nodeInfo.childConnector.remove();
+                    nodeInfo.childConnector = undefined;
+                    currentConnector = undefined;
+                    _event.stopPropagation();
+                }
+            }
+        })();
+
         function getParentConnectorPath(parent, parentElem, child, childElem){
             const parentHalfWidth = parentElem.getAttribute("width") / 2;
-            const childHalfWidth = childElem ? childElem.getAttribute("width") / 2 : 60;
+            const childHalfWidth = childElem ? childElem.getAttribute("width") / 2 : 0;
             return `M${parent[0] + parentHalfWidth} ${parent[1] + 35
                 }C${parent[0] + parentHalfWidth} ${parent[1] + 55
                 },${child[0] + childHalfWidth} ${child[1]-15
@@ -582,7 +624,7 @@ window.addEventListener('load', () => {
             text.setAttribute('y', '20');
             text.setAttribute('font-size','18');
             text.textContent = getNodeText(nodeInfo, nodeIndex);
-            text.setAttribute("class", "noselect");
+            text.setAttribute("class", "noselect nomouse");
             text.style.fill = "white";
             nodeElement.appendChild(text);
             nodeInfo.textElement = text;
@@ -595,6 +637,7 @@ window.addEventListener('load', () => {
                 portText.setAttribute('x', 10);
                 portText.setAttribute('y', y);
                 portText.setAttribute('font-size','16');
+                portText.setAttribute("class", "noselect");
                 portText.style.fill = textColor;
                 portText.textContent = name;
                 const portPosition = [portX, y];
@@ -702,15 +745,19 @@ window.addEventListener('load', () => {
             parentConnectorElem.setAttribute("stroke-width", 2);
             parentConnectorElem.setAttribute("fill", "#00ffff");
             nodeElement.appendChild(parentConnectorElem);
-    
-            const childConnector = document.createElementNS(ns, "circle");
-            childConnector.setAttribute("cx", width / 2);
-            childConnector.setAttribute("cy", 35 + (node.inputPort.length + node.outputPort.length) * 20);
-            childConnector.setAttribute("r", 7);
-            childConnector.setAttribute("stroke", "#003f3f");
-            childConnector.setAttribute("stroke-width", 2);
-            childConnector.setAttribute("fill", "#00ffff");
-            nodeElement.appendChild(childConnector);
+
+            if(!node.isLeafNode()){
+                const childConnectPort = document.createElementNS(ns, "circle");
+                childConnectPort.setAttribute("cx", width / 2);
+                childConnectPort.setAttribute("cy", 35 + (node.inputPort.length + node.outputPort.length) * 20);
+                childConnectPort.setAttribute("r", 7);
+                childConnectPort.setAttribute("stroke", "#003f3f");
+                childConnectPort.setAttribute("stroke-width", 2);
+                childConnectPort.setAttribute("fill", "#00ffff");
+                childConnectPort.setAttribute("class", 'childConnectPort');
+                nodeElement.appendChild(childConnectPort);
+                nodeInfo.childConnectPort = childConnectPort;
+            }
 
             rect.setAttributeNS(null, "width", width);
             nodeInfo.width = width;
@@ -734,6 +781,8 @@ window.addEventListener('load', () => {
                 nodeElement: null,
                 rectElement: null,
                 textElement: null,
+                childConnectPort: null,
+                childConnector: null,
                 width: 0,
             };
             if(parentNode)

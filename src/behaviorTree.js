@@ -40,6 +40,13 @@ export class BehaviorNode{
             blackBoard[portName] = value;
         }
     }
+
+    /// enumerateChildren().length === 0 doesn't mean it's a leaf node.
+    /// It could be a branch with 0 children. We would want to show connector
+    /// if the node is non-leaf.
+    isLeafNode(){
+        return true;
+    }
     enumerateChildren(){
         return [];
     }
@@ -72,6 +79,9 @@ export class SequenceNode extends BehaviorNode{
         }
         this.state = 0;
         return true;
+    }
+    isLeafNode(){
+        return false;
     }
     enumerateChildren(){
         return this.children;
@@ -123,6 +133,9 @@ export class ForceSuccessNode extends BehaviorNode{
         if(result === SUSPEND)
             return SUSPEND;
         return true;
+    }
+    isLeafNode(){
+        return false;
     }
     enumerateChildren(){
         return [this.child];
@@ -242,6 +255,9 @@ export class IfNode extends BehaviorNode{
         }
         this.state = 0;
         return true;
+    }
+    isLeafNode(){
+        return false;
     }
     enumerateChildren(){
         // Create a copy of children to avoid having length === 3 for returned array
