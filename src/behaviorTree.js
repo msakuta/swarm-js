@@ -209,26 +209,24 @@ export class IfNode extends BehaviorNode{
     constructor(condition, then, elseNode){
         super();
         this.name = "If";
-        this.condition = condition;
-        this.then = then;
-        this.elseNode = elseNode;
+        this.children = [condition, then, elseNode];
         this.state = 0;
     }
     tick(context){
         switch(this.state){
             case 0:
-                const conditionResult = this.condition.callTick(context);
+                const conditionResult = this.children[0].callTick(context);
                 if(conditionResult === SUSPEND)
                     return SUSPEND;
                 else if(conditionResult)
                     this.state = 1;
             case 1:
-                const thenResult = this.then ? this.then.callTick(context) : true;
+                const thenResult = this.children[1] ? this.children[1].callTick(context) : true;
                 if(thenResult === SUSPEND)
                     return SUSPEND;
                 this.state = 2;
             case 2:
-                const elseResult = this.elseNode ? this.elseNode.callTick(context) : true;
+                const elseResult = this.children[2] ? this.children[2].callTick(context) : true;
                 if(elseResult === SUSPEND)
                     return SUSPEND;
         }
@@ -236,65 +234,21 @@ export class IfNode extends BehaviorNode{
         return true;
     }
     enumerateChildren(){
-        let ret = [this.condition];
-        if(this.then)
-            ret.push(this.then);
-        if(this.elseNode)
-            ret.push(this.elseNode);
+        // Create a copy of children to avoid having length === 3 for returned array
+        let ret = [this.children[0]];
+        for(let i = 1; i < 3; i++){
+            if(this.children[i])
+                ret.push(this.children[i]);
+        }
         return ret;
     }
     spliceChild(index, deleteCount, insert){
-        if(!!this.condition + !!this.then + !!this.elseNode - deleteCount + !!insert <= 3){
-            if(index === 0){
-                if(0 < deleteCount){
-                    this.condition = undefined;
-                    if(insert)
-                        this.condition = insert;
-                    else if(1 === deleteCount){
-                        this.condition = this.then;
-                        this.elseNode = undefined;
-                    }
-                }
-                if(1 < deleteCount){
-                    this.then = undefined;
-                    if(!insert && deleteCount === 2){
-                        this.condition = this.elseNode;
-                        this.elseNode = undefined;
-                    }
-                }
-                if(2 < deleteCount)
-                    this.elseNode = undefined;
-                if(insert){
-                    this.elseNode = this.then;
-                    this.then = this.condition;
-                }
-                this.condition = insert;
-            }
-            if(index === 1){
-                if(0 < deleteCount){
-                    this.then = undefined;
-                    if(insert)
-                        this.then = insert;
-                    else if(1 === deleteCount){
-                        this.then = this.elseNode;
-                        this.elseNode = undefined;
-                    }
-                }
-                if(1 < deleteCount){
-                    this.elseNode = undefined;
-                }
-                if(insert)
-                    this.elseNode = this.then;
-                this.then = insert;
-            }
-            if(index === 2){
-                if(0 < deleteCount)
-                    this.elseNode = undefined;
-                this.elseNode = insert;
-            }
-            return true;
-        }
-        return false;
+        // Allow adding more than 3 elements temporarily for moving
+        if(insert)
+            this.children.splice(index, deleteCount, insert);
+        else
+            this.children.splice(index, deleteCount);
+        return true;
     }
 }
 
