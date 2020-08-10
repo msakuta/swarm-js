@@ -400,6 +400,7 @@ window.addEventListener('load', () => {
         const svg = document.createElementNS(ns, "svg");
         svg.setAttributeNS(null, "width", 1000);
         svg.setAttributeNS(null, "height", 600);
+        svg.style.backgroundColor = "#3f3f3f";
         // Adding svg and nodes first and then adjust attributes may not be optimal in terms of DOM manipulation
         // and rendering, but we need it to compute text widths on the browser window.
         $(container).prepend(svg);
@@ -535,8 +536,8 @@ window.addEventListener('load', () => {
         function getParentConnectorPath(parent, parentElem, child, childElem){
             const parentHalfWidth = parentElem.getAttribute("width") / 2;
             const childHalfWidth = childElem ? childElem.getAttribute("width") / 2 : 60;
-            return `M${parent[0] + parentHalfWidth} ${parent[1] + 25
-                }C${parent[0] + parentHalfWidth} ${parent[1]+45
+            return `M${parent[0] + parentHalfWidth} ${parent[1] + 35
+                }C${parent[0] + parentHalfWidth} ${parent[1] + 55
                 },${child[0] + childHalfWidth} ${child[1]-15
                 },${child[0] + childHalfWidth},${child[1]}`;
         }
@@ -569,7 +570,7 @@ window.addEventListener('load', () => {
             }
             const rect = document.createElementNS(ns, "rect");
             rect.setAttributeNS(null, 'width', 100);
-            rect.setAttributeNS(null, 'height', 25 + (node.inputPort.length + node.outputPort.length) * 20);
+            rect.setAttributeNS(null, 'height', 35 + (node.inputPort.length + node.outputPort.length) * 20);
             rect.setAttributeNS(null, 'fill', node instanceof BT.IfNode ? '#7f7f00' :
                 node.enumerateChildren().length ? '#007f00' : '#f06');
             rect.setAttributeNS(null, "stroke-width", 2);
@@ -692,6 +693,24 @@ window.addEventListener('load', () => {
                 .map((portValue, index) => [addPort(portValue || "OUT", "#ffafaf", outputPorts, width,
                     value => node.outputPort[index] = value, () => node.outputPort[index]), portValue])
                 .forEach(([position, portValue]) => addPortConnector(position, "#ff7f7f", outputPorts, portValue));
+
+            const parentConnectorElem = document.createElementNS(ns, "circle");
+            parentConnectorElem.setAttribute("cx", width / 2);
+            parentConnectorElem.setAttribute("cy", 0);
+            parentConnectorElem.setAttribute("r", 7);
+            parentConnectorElem.setAttribute("stroke", "#003f3f");
+            parentConnectorElem.setAttribute("stroke-width", 2);
+            parentConnectorElem.setAttribute("fill", "#00ffff");
+            nodeElement.appendChild(parentConnectorElem);
+    
+            const childConnector = document.createElementNS(ns, "circle");
+            childConnector.setAttribute("cx", width / 2);
+            childConnector.setAttribute("cy", 35 + (node.inputPort.length + node.outputPort.length) * 20);
+            childConnector.setAttribute("r", 7);
+            childConnector.setAttribute("stroke", "#003f3f");
+            childConnector.setAttribute("stroke-width", 2);
+            childConnector.setAttribute("fill", "#00ffff");
+            nodeElement.appendChild(childConnector);
 
             rect.setAttributeNS(null, "width", width);
             nodeInfo.width = width;
