@@ -46,6 +46,11 @@ export class BehaviorNode{
     spliceChild(index, deleteCount, insert){
         return false;
     }
+    clone(){
+        let ret = Object.create(this.constructor.prototype);
+        Object.getOwnPropertyNames(this).forEach(key => ret[key] = this[key]);
+        return ret;
+    }
 }
 
 export class SequenceNode extends BehaviorNode{
@@ -77,6 +82,11 @@ export class SequenceNode extends BehaviorNode{
         else
             this.children.splice(index, deleteCount);
         return true;
+    }
+    clone(){
+        let ret = super.clone();
+        ret.children = this.children.map(node => node.clone());
+        return ret;
     }
 }
 
@@ -249,6 +259,11 @@ export class IfNode extends BehaviorNode{
         else
             this.children.splice(index, deleteCount);
         return true;
+    }
+    clone(){
+        let ret = super.clone();
+        ret.children = this.children.map(node => node ? node.clone() : undefined);
+        return ret;
     }
 }
 

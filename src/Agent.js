@@ -39,7 +39,7 @@ export class Agent{
         this.team = team;
         this.cooldown = 5;
         if(this.id % 1 === 0)
-            this.behaviorTree = buildMainTree();
+            this.behaviorTree = new BT.BehaviorTree(mainTree.rootNode.clone());
     }
 
     /// targetPos needs to be an array of 2 elements
