@@ -391,9 +391,12 @@ window.addEventListener('load', () => {
 
     genImage();
 
+    const outerContainer = $("#treeContainer")[0];
+    const container = document.createElement("div");
+    outerContainer.appendChild(container);
+
     function renderTree(){
         const ns = 'http://www.w3.org/2000/svg';
-        const container = $("#treeContainer")[0];
         const svg = document.createElementNS(ns, "svg");
         svg.setAttributeNS(null, "width", 1000);
         svg.setAttributeNS(null, "height", 600);
@@ -790,7 +793,8 @@ window.addEventListener('load', () => {
 
     renderTree();
 
-    const container = $("#treeContainer")[0];
+    const reorderButtonContainer = document.createElement("div");
+    reorderButtonContainer.style.align = "center";
     const reorderButton = document.createElement("input");
     reorderButton.type = "button";
     reorderButton.onclick = () => {
@@ -798,7 +802,8 @@ window.addEventListener('load', () => {
         renderTree();
     };
     reorderButton.value = "Reorder";
-    container.appendChild(reorderButton);
+    reorderButtonContainer.appendChild(reorderButton);
+    outerContainer.appendChild(reorderButtonContainer);
 
     function frameProc(){
         game.animate();
