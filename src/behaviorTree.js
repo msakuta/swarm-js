@@ -3,7 +3,7 @@ import { centerOfTriangleObj } from "./triangleUtils";
 // For now, it's an ugly global table.
 let blackBoard = {};
 
-const SUSPEND = 2;
+const RUNNING = 2;
 
 export class BehaviorNode{
     outputPort = [];
@@ -18,8 +18,8 @@ export class BehaviorNode{
             tree.execStack.push(this);
         const result = this.tick(context);
         context.resuming = false;
-        if(result === SUSPEND)
-            return SUSPEND;
+        if(result === RUNNING)
+            return RUNNING;
         tree.execStack.pop();
         return result;
     }
@@ -70,8 +70,8 @@ export class SequenceNode extends BehaviorNode{
     tick(context){
         for(; this.state < this.children.length; this.state++){
             const result = this.children[this.state].callTick(context);
-            if(result === SUSPEND)
-                return SUSPEND;
+            if(result === RUNNING)
+                return RUNNING;
             else if(!result){
                 this.state = 0;
                 return false;
@@ -108,9 +108,9 @@ export class ReactiveSequenceNode extends SequenceNode{
     tick(context){
         for(; this.state < this.children.length; this.state++){
             const result = this.children[this.state].callTick(context);
-            if(result === SUSPEND){
+            if(result === RUNNING){
                 this.state = 0;
-                return SUSPEND;
+                return RUNNING;
             }
             else if(!result){
                 this.state = 0;
@@ -130,8 +130,8 @@ export class ForceSuccessNode extends BehaviorNode{
     }
     tick(context){
         const result = this.child.callTick(context);
-        if(result === SUSPEND)
-            return SUSPEND;
+        if(result === RUNNING)
+            return RUNNING;
         return true;
     }
     isLeafNode(){
@@ -164,7 +164,7 @@ export class WaitNode extends BehaviorNode{
     tick({game, agent}){
         if(0 < this.timeLeft){
             this.timeLeft--;
-            return SUSPEND;
+            return RUNNING;
         }
         else{
             this.timeLeft = this.resolveInputPort(this.inputPort[0]);
@@ -239,19 +239,19 @@ export class IfNode extends BehaviorNode{
         switch(this.state){
             case 0:
                 const conditionResult = this.children[0].callTick(context);
-                if(conditionResult === SUSPEND)
-                    return SUSPEND;
+                if(conditionResult === RUNNING)
+                    return RUNNING;
                 else if(conditionResult)
                     this.state = 1;
             case 1:
                 const thenResult = this.children[1] ? this.children[1].callTick(context) : true;
-                if(thenResult === SUSPEND)
-                    return SUSPEND;
+                if(thenResult === RUNNING)
+                    return RUNNING;
                 this.state = 2;
             case 2:
                 const elseResult = this.children[2] ? this.children[2].callTick(context) : true;
-                if(elseResult === SUSPEND)
-                    return SUSPEND;
+                if(elseResult === RUNNING)
+                    return RUNNING;
         }
         this.state = 0;
         return true;
