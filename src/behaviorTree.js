@@ -67,7 +67,7 @@ export class SequenceNode extends BehaviorNode{
     constructor(children){
         super();
         this.name = "Sequence";
-        this.children = children;
+        this.children = children || [];
         this.state = 0;
     }
     tick(context){
@@ -212,8 +212,15 @@ export class MoveNode extends BehaviorNode{
     }
     tick({game, agent, blackBoard}){
         if(this.inputPort[0]){
-            agent.moveTo(game, this.resolveInputPort(this.inputPort[0], blackBoard));
-            return SUCCESS;
+            let position = this.resolveInputPort(this.inputPort[0], blackBoard);
+            if(typeof position === "string")
+                position = JSON.parse(position);
+            if(position instanceof Array && position.length == 2){
+                agent.moveTo(game, position);
+                return SUCCESS;
+            }
+            else
+                return FAILURE;
         }
         else
             return FAILURE;
@@ -357,6 +364,24 @@ export class ShootBulletNode extends BehaviorNode{
             ? SUCCESS : FAILURE;
     }
 }
+
+export const allNodeTypes = [
+    SequenceNode,
+    ReactiveSequenceNode,
+    ForceSuccessNode,
+    SetBlackboardNode,
+    MoveNode,
+    GetNextNodePositionNode,
+    WaitNode,
+    FindPathNode,
+    IfNode,
+    IsTargetFoundNode,
+    FindTargetNode,
+    GetTargetNode,
+    PrintEntityNode,
+    GetTargetPositionNode,
+    ShootBulletNode,
+];
 
 export class BehaviorTree{
     constructor(rootNode){

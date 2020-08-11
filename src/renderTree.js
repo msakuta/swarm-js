@@ -30,16 +30,19 @@ function renderTreeInternal(container){
     // Adding svg and nodes first and then adjust attributes may not be optimal in terms of DOM manipulation
     // and rendering, but we need it to compute text widths on the browser window.
     $(container).prepend(svg);
+    const svgPalette = document.createElementNS(ns, "g");
+    svg.appendChild(svgPalette);
     const svgInternal = document.createElementNS(ns, "g");
     svg.appendChild(svgInternal);
 
-    function getMousePosition(evt) {
-        var CTM = svgInternal.getScreenCTM();
+    const getMousePositionTemplate = elem => evt => {
+        var CTM = elem.getScreenCTM();
         return [
           (evt.clientX - CTM.e) / CTM.a,
           (evt.clientY - CTM.f) / CTM.d
         ];
     }
+    const getMousePosition = getMousePositionTemplate(svgInternal);
 
     function getNodeText(nodeInfo, nodeIndex){
         let node = nodeInfo.node;
@@ -159,6 +162,47 @@ function renderTreeInternal(container){
         }
     })();
 
+    const paletteNodeMap = [];
+    (function makePaletteDraggablePrepare(nodeMap){
+        const getMousePosition = getMousePositionTemplate(svgPalette);
+        let offset = [0, 0];
+        let selectedElement = null;
+        svg.addEventListener('mousedown', startDrag);
+        svg.addEventListener('mousemove', drag);
+        svg.addEventListener('mouseup', endDrag);
+        svg.addEventListener('mouseleave', endDrag);
+        function startDrag(evt) {
+            if (evt.target.classList.contains('paletteDraggable')) {
+                const foundElement = nodeMap.find(nodeInfo => nodeInfo.rectElement === evt.target);
+                if(!foundElement)
+                    return;
+                selectedElement = newNodeInfo(foundElement.node, [...foundElement.position], null);
+                renderNodePalette(selectedElement, 0);
+                offset = getMousePosition(evt);
+                offset[0] -= selectedElement.position[0];
+                offset[1] -= selectedElement.position[1];
+            }
+        }
+        function drag(evt) {
+            if(selectedElement){
+                const nodeInfo = selectedElement;
+                evt.preventDefault();
+                var coord = getMousePosition(evt);
+                nodeInfo.position[0] = coord[0] - offset[0];
+                nodeInfo.position[1] = coord[1] - offset[1];
+                nodeInfo.nodeElement.setAttribute("transform", `translate(${nodeInfo.position[0]}, ${nodeInfo.position[1]})`);
+            }
+        }
+        function endDrag(evt) {
+            if(selectedElement){
+                selectedElement.nodeElement.remove();
+                selectedElement.position[0] -= svgInternal.getScreenCTM().e - svgPalette.getScreenCTM().e;
+                renderNode(selectedElement, 0);
+                selectedElement = null;
+            }
+        }
+    })(paletteNodeMap);
+
     (function makeChildPortDraggablePrepare(){
         svg.addEventListener('mousedown', startDrag);
         svg.addEventListener('mousemove', drag);
@@ -263,7 +307,7 @@ function renderTreeInternal(container){
     const outputPorts = {};
     const deferred = [];
 
-    function renderNode(nodeInfo, nodeIndex){
+    const renderNodeTemplate = (svgInternal, inputPorts, outputPorts, deferred, makeDraggable, editable) => (nodeInfo, nodeIndex) => {
         const {node} = nodeInfo;
         const nodeElement = document.createElementNS(ns, "g");
         nodeElement.setAttributeNS(null, 'width', 100);
@@ -316,41 +360,43 @@ function renderTreeInternal(container){
             portText.style.fill = textColor;
             portText.textContent = name;
             const portPosition = [portX, y];
-            portText.addEventListener("click", (evt) => {
-                const inputField = document.createElement("input");
-                inputField.value = portText.textContent;
-                inputField.style.position = "absolute";
-                const containerBBox = container.getBoundingClientRect();
-                const bbox = portText.getBoundingClientRect();
-                inputField.style.left = `${bbox.x - containerBBox.x}px`;
-                inputField.style.top = `${bbox.y - containerBBox.y}px`;
-                inputField.onkeydown = event => {
-                    if(event.keyCode === 13){ // enter
-                        portText.textContent = inputField.value;
-                        removePortConnector(portCollection, reader());
-                        writer(inputField.value);
-                        addPortConnectorCollection(portPosition, portCollection, inputField.value);
-                        updateConnection();
-                        cleanup();
-                        event.preventDefault();
+            if(editable){
+                portText.addEventListener("click", (evt) => {
+                    const inputField = document.createElement("input");
+                    inputField.value = portText.textContent;
+                    inputField.style.position = "absolute";
+                    const containerBBox = container.getBoundingClientRect();
+                    const bbox = portText.getBoundingClientRect();
+                    inputField.style.left = `${bbox.x - containerBBox.x}px`;
+                    inputField.style.top = `${bbox.y - containerBBox.y}px`;
+                    inputField.onkeydown = event => {
+                        if(event.keyCode === 13){ // enter
+                            portText.textContent = inputField.value;
+                            removePortConnector(portCollection, reader());
+                            writer(inputField.value);
+                            addPortConnectorCollection(portPosition, portCollection, inputField.value);
+                            updateConnection();
+                            cleanup();
+                            event.preventDefault();
+                        }
+                        else if(event.keyCode === 27){ // escape
+                            cleanup();
+                        }
+                        return true;
                     }
-                    else if(event.keyCode === 27){ // escape
+                    const mouseDownEvent = event => {
                         cleanup();
+                    };
+                    function cleanup(){
+                        inputField.remove();
+                        svg.removeEventListener("click", mouseDownEvent);
                     }
-                    return true;
-                }
-                const mouseDownEvent = event => {
-                    cleanup();
-                };
-                function cleanup(){
-                    inputField.remove();
-                    svg.removeEventListener("click", mouseDownEvent);
-                }
-                container.appendChild(inputField);
-                inputField.focus();
-                svg.addEventListener("mousedown", mouseDownEvent);
-                evt.stopPropagation();
-            });
+                    container.appendChild(inputField);
+                    inputField.focus();
+                    svg.addEventListener("mousedown", mouseDownEvent);
+                    evt.stopPropagation();
+                });
+            }
             nodeElement.appendChild(portText);
             const bbox = portText.getBBox();
             width = Math.max(width, bbox.width + 20);
@@ -444,10 +490,16 @@ function renderTreeInternal(container){
         makeDraggable(nodeInfo);
 
         return [width, y];
-    }
+    };
 
-    function renderSubTree(node, offset, parentNode=null, nodeIndex=0){
-        let nodeInfo = {
+    const renderNodePalette = renderNodeTemplate(svgPalette, {}, {}, {}, nodeInfo => {
+        nodeInfo.rectElement.setAttribute("class", "paletteDraggable");
+        nodeInfo.rectElement.style.cursor = "move";
+        paletteNodeMap.push(nodeInfo);
+    }, false);
+
+    function newNodeInfo(node, offset, parentNode){
+        return {
             node,
             parentNode,
             position: offset,
@@ -462,7 +514,22 @@ function renderTreeInternal(container){
             childConnectPort: null,
             childConnector: null,
             width: 0,
-        };
+        }
+    }
+
+    const paletteSize = [10, 40];
+    const paletteOffset = [10, 40];
+    BT.allNodeTypes.forEach((nodeType, index) => {
+        const nodeSize = renderNodePalette(newNodeInfo(new nodeType, [...paletteOffset], null), index);
+        paletteOffset[1] += nodeSize[1] + 10;
+        paletteSize[0] = Math.max(paletteSize[0], nodeSize[0]);
+        paletteSize[1] = Math.max(paletteSize[1], paletteOffset[1]);
+    });
+
+    const renderNode = renderNodeTemplate(svgInternal, inputPorts, outputPorts, deferred, makeDraggable, true);
+
+    function renderSubTree(node, offset, parentNode=null, nodeIndex=0){
+        let nodeInfo = newNodeInfo(node, offset, parentNode);
         if(parentNode)
             parentNode.childNodes.push(nodeInfo);
         const children = node.enumerateChildren();
@@ -529,10 +596,23 @@ function renderTreeInternal(container){
     updateConnection();
 
     const scale = 0.75;
+    const svgPaletteBg = document.createElementNS(ns, "rect");
+    svgPaletteBg.setAttribute("width", (paletteSize[0] + 20));
+    svgPaletteBg.setAttribute("height", (paletteSize[1] + 20));
+    svgPaletteBg.setAttribute("fill", "#7f7f7f");
+    const svgPaletteText = document.createElementNS(ns, "text");
+    svgPaletteText.textContent = "Palette";
+    svgPaletteText.setAttribute("font-size", 25);
+    svgPaletteText.setAttribute("x", 10);
+    svgPaletteText.setAttribute("y", 25);
+    svgPaletteText.setAttribute("class", "noselect");
+    svgPalette.appendChild(svgPaletteText);
+    svgPalette.insertBefore(svgPaletteBg, svgPalette.firstChild);
+    svgPalette.setAttribute("transform", `scale(${scale})`);
     // We cannot apply transform to svg element itself because Edge doesn't support it.
-    svg.setAttribute("width", (size[0] + 20) * scale);
-    svg.setAttribute("height", (size[1] + 20) * scale);
-    svgInternal.setAttribute("transform", `scale(${scale})`);
+    svg.setAttribute("width", (paletteSize[0] + size[0] + 20) * scale);
+    svg.setAttribute("height", (Math.max(paletteSize[1], size[1]) + 20) * scale);
+    svgInternal.setAttribute("transform", `translate(${paletteSize[0] * scale + 20}, 0) scale(${scale})`);
     deferred.forEach(entry => entry());
 
 }
