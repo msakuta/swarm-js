@@ -3,6 +3,8 @@ import { centerOfTriangleObj } from "./triangleUtils";
 // For now, it's an ugly global table.
 let blackBoard = {};
 
+const SUCCESS = 1;
+const FAILURE = 0;
 const RUNNING = 2;
 
 export class BehaviorNode{
@@ -23,7 +25,11 @@ export class BehaviorNode{
         tree.execStack.pop();
         return result;
     }
-    tick(context){}
+
+    /// @returns SUCCESS, FAILURE or RUNNING
+    tick(context){
+        return SUCCESS;
+    }
     resolveInputPort(value){
         if(value[0] === "{" && value[value.length-1] === "}"){
             return blackBoard[value.substr(1, value.length-2)];
@@ -72,13 +78,13 @@ export class SequenceNode extends BehaviorNode{
             const result = this.children[this.state].callTick(context);
             if(result === RUNNING)
                 return RUNNING;
-            else if(!result){
+            else if(result === FAILURE){
                 this.state = 0;
-                return false;
+                return FAILURE;
             }
         }
         this.state = 0;
-        return true;
+        return SUCCESS;
     }
     isLeafNode(){
         return false;
@@ -112,13 +118,13 @@ export class ReactiveSequenceNode extends SequenceNode{
                 this.state = 0;
                 return RUNNING;
             }
-            else if(!result){
+            else if(result === FAILURE){
                 this.state = 0;
-                return false;
+                return FAILURE;
             }
         }
         this.state = 0;
-        return true;
+        return SUCCESS;
     }
 }
 
@@ -132,7 +138,7 @@ export class ForceSuccessNode extends BehaviorNode{
         const result = this.child.callTick(context);
         if(result === RUNNING)
             return RUNNING;
-        return true;
+        return SUCCESS;
     }
     isLeafNode(){
         return false;
@@ -149,7 +155,7 @@ export class SetBlackboardNode extends BehaviorNode{
         this.inputPort.push(value);
         this.outputPort.push(output);
     }
-    tick({game, agent}){
+    tick(_context){
         this.resolveOutputPort(this.outputPort[0], this.resolveInputPort(this.inputPort[0]));
     }
 }
@@ -161,14 +167,14 @@ export class WaitNode extends BehaviorNode{
         this.inputPort.push(duration);
         this.timeLeft = this.resolveInputPort(this.inputPort[0]);
     }
-    tick({game, agent}){
+    tick(_context){
         if(0 < this.timeLeft){
             this.timeLeft--;
             return RUNNING;
         }
         else{
             this.timeLeft = this.resolveInputPort(this.inputPort[0]);
-            return true;
+            return SUCCESS;
         }
     }
 }
@@ -181,7 +187,7 @@ export class FindPathNode extends BehaviorNode{
     }
     tick({game, agent}){
         agent.findPath(game, this.resolveInputPort(this.inputPort[0]));
-        return true;
+        return SUCCESS;
     }
 }
 
@@ -193,11 +199,11 @@ export class GetNextNodePositionNode extends BehaviorNode{
     }
     tick({game, agent}){
         if(!agent.path || agent.path.length === 0)
-            return false;
+            return FAILURE;
         const center = centerOfTriangleObj(game.triangulation, game.trianglePoints,
             agent.path[agent.path.length-1]);
         this.resolveOutputPort(this.outputPort[0], [center.x, center.y]);
-        return true;
+        return SUCCESS;
     }
 }
 
@@ -210,10 +216,10 @@ export class MoveNode extends BehaviorNode{
     tick({game, agent}){
         if(this.inputPort[0]){
             agent.moveTo(game, this.resolveInputPort(this.inputPort[0]));
-            return true;
+            return SUCCESS;
         }
         else
-            return false;
+            return FAILURE;
     }
 }
 
@@ -224,7 +230,7 @@ export class FollowPathNode extends BehaviorNode{
     }
     tick({game, agent}){
         agent.followPath(game);
-        return true;
+        return SUCCESS;
     }
 }
 
@@ -254,7 +260,7 @@ export class IfNode extends BehaviorNode{
                     return RUNNING;
         }
         this.state = 0;
-        return true;
+        return SUCCESS;
     }
     isLeafNode(){
         return false;
@@ -301,7 +307,7 @@ export class FindTargetNode extends BehaviorNode{
     }
     tick({game, agent}){
         this.resolveOutputPort(this.outputPort[0], agent.findEnemy(game));
-        return true;
+        return SUCCESS;
     }
 }
 
@@ -313,7 +319,7 @@ export class GetTargetNode extends BehaviorNode{
     }
     tick({game, agent}){
         this.resolveOutputPort(this.outputPort[0], agent.target);
-        return true;
+        return SUCCESS;
     }
 }
 
@@ -323,9 +329,9 @@ export class PrintEntityNode extends BehaviorNode{
         this.name = "PrintEntity";
         this.inputPort.push(target);
     }
-    tick({game, agent}){
+    tick(_context){
         console.log(this.resolveInputPort(this.inputPort[0]));
-        return true;
+        return SUCCESS;
     }
 }
 
@@ -335,11 +341,11 @@ export class GetTargetPositionNode extends BehaviorNode{
         this.name = "GetTargetPosition";
         this.outputPort.push(targetPos);
     }
-    tick({game, agent}){
+    tick({agent}){
         if(!agent.target)
-            return false;
+            return FAILURE;
         this.resolveOutputPort(this.outputPort[0], agent.target.pos);
-        return true;
+        return SUCCESS;
     }
 }
 
@@ -350,7 +356,8 @@ export class ShootBulletNode extends BehaviorNode{
         this.inputPort.push(targetPos);
     }
     tick({game, agent}){
-        agent.shootBullet(game, this.resolveInputPort(this.inputPort[0]));
+        return agent.shootBullet(game, this.resolveInputPort(this.inputPort[0]))
+            ? SUCCESS : FAILURE;
     }
 }
 
