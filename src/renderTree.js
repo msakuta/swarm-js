@@ -2,7 +2,26 @@ const $ = require('jquery');
 import * as BT from "./behaviorTree";
 import { mainTree } from "./Agent";
 
-export default function renderTree(container){
+export default function renderTree(outerContainer){
+    const container = document.createElement("div");
+    outerContainer.appendChild(container);
+
+    renderTreeInternal(container);
+
+    const reorderButtonContainer = document.createElement("div");
+    reorderButtonContainer.style.align = "center";
+    const reorderButton = document.createElement("input");
+    reorderButton.type = "button";
+    reorderButton.onclick = () => {
+        $(container).children().remove("svg");
+        renderTreeInternal(container);
+    };
+    reorderButton.value = "Reorder";
+    reorderButtonContainer.appendChild(reorderButton);
+    outerContainer.appendChild(reorderButtonContainer);
+}
+
+function renderTreeInternal(container){
     const ns = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(ns, "svg");
     svg.setAttributeNS(null, "width", 1000);

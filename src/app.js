@@ -391,23 +391,8 @@ window.addEventListener('load', () => {
 
     genImage();
 
-    const outerContainer = $("#treeContainer")[0];
-    const container = document.createElement("div");
-    outerContainer.appendChild(container);
-
-    renderTree(container);
-
-    const reorderButtonContainer = document.createElement("div");
-    reorderButtonContainer.style.align = "center";
-    const reorderButton = document.createElement("input");
-    reorderButton.type = "button";
-    reorderButton.onclick = () => {
-        $(container).children().remove("svg");
-        renderTree(container);
-    };
-    reorderButton.value = "Reorder";
-    reorderButtonContainer.appendChild(reorderButton);
-    outerContainer.appendChild(reorderButtonContainer);
+    const treeContainer = $("#treeContainer")[0];
+    renderTree(treeContainer);
 
     function frameProc(){
         game.animate();
