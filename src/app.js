@@ -663,7 +663,7 @@ window.addEventListener('load', () => {
             rect.setAttributeNS(null, 'width', 100);
             rect.setAttributeNS(null, 'height', 35 + (node.inputPort.length + node.outputPort.length) * 20);
             rect.setAttributeNS(null, 'fill', node instanceof BT.IfNode ? '#7f7f00' :
-                node.enumerateChildren().length ? '#007f00' : '#f06');
+                node.isLeafNode() ? '#3f7f3f' : '#af3f4f');
             rect.setAttributeNS(null, "stroke-width", 2);
             rect.setAttributeNS(null, "stroke", "#000");
             nodeInfo.rectElement = rect;
