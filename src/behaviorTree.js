@@ -1,8 +1,5 @@
 import { centerOfTriangleObj } from "./triangleUtils";
 
-// For now, it's an ugly global table.
-let blackBoard = {};
-
 const SUCCESS = 1;
 const FAILURE = 0;
 const RUNNING = 2;
@@ -30,7 +27,7 @@ export class BehaviorNode{
     tick(context){
         return SUCCESS;
     }
-    resolveInputPort(value){
+    resolveInputPort(value, blackBoard){
         if(value[0] === "{" && value[value.length-1] === "}"){
             return blackBoard[value.substr(1, value.length-2)];
         }
@@ -38,7 +35,7 @@ export class BehaviorNode{
             return value;
         }
     }
-    resolveOutputPort(portName, value){
+    resolveOutputPort(portName, value, blackBoard){
         if(portName[0] === "{" && portName[portName.length-1] === "}"){
             blackBoard[portName.substr(1, portName.length-2)] = value;
         }
@@ -155,8 +152,8 @@ export class SetBlackboardNode extends BehaviorNode{
         this.inputPort.push(value);
         this.outputPort.push(output);
     }
-    tick(_context){
-        this.resolveOutputPort(this.outputPort[0], this.resolveInputPort(this.inputPort[0]));
+    tick({blackBoard}){
+        this.resolveOutputPort(this.outputPort[0], this.resolveInputPort(this.inputPort[0], blackBoard), blackBoard);
     }
 }
 
@@ -165,15 +162,15 @@ export class WaitNode extends BehaviorNode{
         super();
         this.name = "Wait";
         this.inputPort.push(duration);
-        this.timeLeft = this.resolveInputPort(this.inputPort[0]);
+        this.timeLeft = this.inputPort[0]; // should be resolveInputPort-ed in init()
     }
-    tick(_context){
+    tick({blackBoard}){
         if(0 < this.timeLeft){
             this.timeLeft--;
             return RUNNING;
         }
         else{
-            this.timeLeft = this.resolveInputPort(this.inputPort[0]);
+            this.timeLeft = this.resolveInputPort(this.inputPort[0], blackBoard);
             return SUCCESS;
         }
     }
@@ -185,8 +182,8 @@ export class FindPathNode extends BehaviorNode{
         this.name = "FindPath";
         this.inputPort.push(target);
     }
-    tick({game, agent}){
-        agent.findPath(game, this.resolveInputPort(this.inputPort[0]));
+    tick({game, agent, blackBoard}){
+        agent.findPath(game, this.resolveInputPort(this.inputPort[0], blackBoard));
         return SUCCESS;
     }
 }
@@ -197,12 +194,12 @@ export class GetNextNodePositionNode extends BehaviorNode{
         this.name = "GetNextNodePosition";
         this.outputPort.push(position);
     }
-    tick({game, agent}){
+    tick({game, agent, blackBoard}){
         if(!agent.path || agent.path.length === 0)
             return FAILURE;
         const center = centerOfTriangleObj(game.triangulation, game.trianglePoints,
             agent.path[agent.path.length-1]);
-        this.resolveOutputPort(this.outputPort[0], [center.x, center.y]);
+        this.resolveOutputPort(this.outputPort[0], [center.x, center.y], blackBoard);
         return SUCCESS;
     }
 }
@@ -213,9 +210,9 @@ export class MoveNode extends BehaviorNode{
         this.name = "Move";
         this.inputPort.push(position);
     }
-    tick({game, agent}){
+    tick({game, agent, blackBoard}){
         if(this.inputPort[0]){
-            agent.moveTo(game, this.resolveInputPort(this.inputPort[0]));
+            agent.moveTo(game, this.resolveInputPort(this.inputPort[0], blackBoard));
             return SUCCESS;
         }
         else
@@ -305,8 +302,8 @@ export class FindTargetNode extends BehaviorNode{
         this.name = "FindTarget";
         this.outputPort.push(target);
     }
-    tick({game, agent}){
-        this.resolveOutputPort(this.outputPort[0], agent.findEnemy(game));
+    tick({game, agent, blackBoard}){
+        this.resolveOutputPort(this.outputPort[0], agent.findEnemy(game), blackBoard);
         return SUCCESS;
     }
 }
@@ -317,8 +314,8 @@ export class GetTargetNode extends BehaviorNode{
         this.name = "GetTarget";
         this.outputPort.push(target);
     }
-    tick({game, agent}){
-        this.resolveOutputPort(this.outputPort[0], agent.target);
+    tick({game, agent, blackBoard}){
+        this.resolveOutputPort(this.outputPort[0], agent.target, blackBoard);
         return SUCCESS;
     }
 }
@@ -329,8 +326,8 @@ export class PrintEntityNode extends BehaviorNode{
         this.name = "PrintEntity";
         this.inputPort.push(target);
     }
-    tick(_context){
-        console.log(this.resolveInputPort(this.inputPort[0]));
+    tick({blackBoard}){
+        console.log(this.resolveInputPort(this.inputPort[0], blackBoard));
         return SUCCESS;
     }
 }
@@ -341,10 +338,10 @@ export class GetTargetPositionNode extends BehaviorNode{
         this.name = "GetTargetPosition";
         this.outputPort.push(targetPos);
     }
-    tick({agent}){
+    tick({agent, blackBoard}){
         if(!agent.target)
             return FAILURE;
-        this.resolveOutputPort(this.outputPort[0], agent.target.pos);
+        this.resolveOutputPort(this.outputPort[0], agent.target.pos, blackBoard);
         return SUCCESS;
     }
 }
@@ -355,8 +352,8 @@ export class ShootBulletNode extends BehaviorNode{
         this.name = "ShootBullet";
         this.inputPort.push(targetPos);
     }
-    tick({game, agent}){
-        return agent.shootBullet(game, this.resolveInputPort(this.inputPort[0]))
+    tick({game, agent, blackBoard}){
+        return agent.shootBullet(game, this.resolveInputPort(this.inputPort[0], blackBoard))
             ? SUCCESS : FAILURE;
     }
 }
@@ -365,15 +362,17 @@ export class BehaviorTree{
     constructor(rootNode){
         this.rootNode = rootNode;
         this.execStack = [];
+        // Blackboard state is carried on to next tick. Is it desired behavior?
+        this.blackBoard = {};
     }
     tick(game, agent){
         if(this.execStack.length === 0){
             if(this.rootNode){
-                this.rootNode.callTick({tree: this, resuming: false, game, agent});
+                this.rootNode.callTick({tree: this, resuming: false, game, agent, blackBoard: this.blackBoard});
             }
         }
         else{
-            this.rootNode.callTick({tree: this, resuming: true, game, agent});
+            this.rootNode.callTick({tree: this, resuming: true, game, agent, blackBoard: this.blackBoard});
         }
     }
 }
