@@ -94,6 +94,8 @@ export class Agent{
     shootBullet(game, targetPos){
         if(0 < this.cooldown)
             return false;
+        if(!(targetPos instanceof Array) || targetPos.length < 2)
+            return false;
         let delta = targetPos.map((x, i) => x - this.pos[i]);
         let distance = Math.sqrt(delta.reduce((sum, x) => sum += x * x, 0));
         let bullet = {
