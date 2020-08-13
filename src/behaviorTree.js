@@ -28,7 +28,7 @@ export class BehaviorNode{
         return SUCCESS;
     }
     resolveInputPort(value, blackBoard){
-        if(value[0] === "{" && value[value.length-1] === "}"){
+        if(typeof value === "string" && value[0] === "{" && value[value.length-1] === "}"){
             return blackBoard[value.substr(1, value.length-2)];
         }
         else{
