@@ -213,8 +213,14 @@ export class MoveNode extends BehaviorNode{
     tick({game, agent, blackBoard}){
         if(this.inputPort[0]){
             let position = this.resolveInputPort(this.inputPort[0], blackBoard);
-            if(typeof position === "string")
-                position = JSON.parse(position);
+            if(typeof position === "string"){
+                try{
+                    position = JSON.parse(position);
+                }
+                catch(e){
+                    console.log("Error on parsing position: " + e.message);
+                }
+            }
             if(position instanceof Array && position.length == 2){
                 agent.moveTo(game, position);
                 return SUCCESS;
