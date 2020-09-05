@@ -132,9 +132,16 @@ export class ForceSuccessNode extends BehaviorNode{
         this.child = child;
     }
     tick(context){
-        const result = this.child.callTick(context);
-        if(result === RUNNING)
-            return RUNNING;
+        if(this.child){
+            try{
+                const result = this.child.callTick(context);
+                if(result === RUNNING)
+                    return RUNNING;
+            }
+            catch(err){
+                console.log("ForceSuccessNode: " + err.message);
+            }
+        }
         return SUCCESS;
     }
     isLeafNode(){
