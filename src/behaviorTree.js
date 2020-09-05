@@ -148,7 +148,7 @@ export class ForceSuccessNode extends BehaviorNode{
         return false;
     }
     enumerateChildren(){
-        return [this.child];
+        return this.child ? [this.child] : [];
     }
 }
 
