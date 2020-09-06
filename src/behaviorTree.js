@@ -150,6 +150,11 @@ export class ForceSuccessNode extends BehaviorNode{
     enumerateChildren(){
         return this.child ? [this.child] : [];
     }
+    spliceChild(index, count){
+        if(index === 0 && count === 1){
+            this.child = null;
+        }
+    }
 }
 
 export class SetBlackboardNode extends BehaviorNode{
