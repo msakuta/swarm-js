@@ -135,6 +135,8 @@ function renderTreeInternal(container){
                     if(selectedElement.parentNode){
                         const nodeInfoChildren = selectedElement.parentNode.childNodes;
                         const childIndex = nodeInfoChildren.indexOf(selectedElement);
+                        if(selectedElement.parentConnector)
+                            selectedElement.parentConnector.remove();
                         nodeInfoChildren.splice(childIndex, 1);
                         selectedElement.parentNode.node.spliceChild(childIndex, 1);
                         reordering = null;
@@ -219,7 +221,7 @@ function renderTreeInternal(container){
         svg.addEventListener('mousemove', drag);
         svg.addEventListener('mouseup', endDrag);
         svg.addEventListener('mouseleave', endDrag);
-        let currentConnector;
+        let draggingConnector;
         let targetConnector;
         function startDrag(event){
             if(event.target.classList.contains('childConnectPort')){
@@ -235,12 +237,12 @@ function renderTreeInternal(container){
                 childConnector.setAttribute("class", "nondraggable");
                 svgInternal.appendChild(childConnector);
                 nodeInfo.childConnector = childConnector;
-                currentConnector = nodeInfo;
+                draggingConnector = nodeInfo;
             }
         }
         function drag(event){
-            if(currentConnector){
-                const nodeInfo = currentConnector;
+            if(draggingConnector){
+                const nodeInfo = draggingConnector;
                 const mouse = getMousePosition(event);
                 nodeInfo.childConnector.setAttribute("d", getParentConnectorPath(
                     nodeInfo.position, nodeInfo.rectElement, mouse, null));
@@ -271,11 +273,14 @@ function renderTreeInternal(container){
             }
         }
         function endDrag(_event){
-            if(currentConnector){
-                const nodeInfo = currentConnector;
+            if(draggingConnector){
+                const nodeInfo = draggingConnector;
                 nodeInfo.childConnector.remove();
                 nodeInfo.childConnector = null;
-                if(targetConnector){
+                // Skip if connecting to the same parent (no-op)
+                if(targetConnector && draggingConnector.node.enumerateChildren().indexOf(targetConnector) < 0 &&
+                    draggingConnector.node.enumerateChildren().length + 1 <= draggingConnector.node.maximumChildren())
+                {
                     if(targetConnector.parentNode){
                         targetConnector.parentNode.childNodes.splice(
                             targetConnector.parentNode.childNodes.indexOf(targetConnector), 1);
@@ -283,7 +288,7 @@ function renderTreeInternal(container){
                         targetConnector.parentNode.node.spliceChild(
                             targetConnector.parentNode.node.enumerateChildren().indexOf(targetConnector.node), 1);
                     }
-                    targetConnector.parentNode = currentConnector;
+                    targetConnector.parentNode = draggingConnector;
                     const parentConnector = document.createElementNS(ns, "path");
                     parentConnector.setAttribute("d", getParentConnectorPath(
                         nodeInfo.position, nodeInfo.rectElement,
@@ -294,12 +299,12 @@ function renderTreeInternal(container){
                     parentConnector.setAttribute("class", "nondraggable");
                     targetConnector.parentConnector = parentConnector;
                     targetConnector.parentNode = nodeInfo;
-                    currentConnector.childNodes.unshift(targetConnector);
+                    draggingConnector.childNodes.unshift(targetConnector);
                     nodeInfo.node.spliceChild(0, 0, targetConnector.node);
                     svgInternal.appendChild(parentConnector);
                     targetConnector.parentConnectPort.setAttribute("stroke", "#003f3f");
                 }
-                currentConnector = null;
+                draggingConnector = null;
                 targetConnector = null;
             }
         }

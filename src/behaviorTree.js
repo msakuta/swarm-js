@@ -8,9 +8,6 @@ export class BehaviorNode{
     outputPort = [];
     inputPort = [];
     name = "Node";
-    constructor(){
-        this.parent = parent;
-    }
     callTick(context){
         const {tree, resuming} = context;
         if(!resuming)
@@ -48,7 +45,13 @@ export class BehaviorNode{
     /// It could be a branch with 0 children. We would want to show connector
     /// if the node is non-leaf.
     isLeafNode(){
-        return true;
+        return this.maximumChildren() === 0;
+    }
+
+    /// Some nodes have limited number of children, e.g. decorators have only 1, if nodes can have up to 3.
+    /// We need this information to edit the tree in the graphical editor.
+    maximumChildren(){
+        return 0;
     }
     enumerateChildren(){
         return [];
@@ -85,6 +88,9 @@ export class SequenceNode extends BehaviorNode{
     }
     isLeafNode(){
         return false;
+    }
+    maximumChildren(){
+        return Infinity;
     }
     enumerateChildren(){
         return this.children;
@@ -147,12 +153,18 @@ export class ForceSuccessNode extends BehaviorNode{
     isLeafNode(){
         return false;
     }
+    maximumChildren(){
+        return 1;
+    }
     enumerateChildren(){
         return this.child ? [this.child] : [];
     }
-    spliceChild(index, count){
-        if(index === 0 && count === 1){
-            this.child = null;
+    spliceChild(index, count, node){
+        if(index === 0 && this.child){
+            if(count === 1)
+                this.child = null;
+            if(node)
+                this.child = node;
         }
     }
 }
@@ -286,6 +298,9 @@ export class IfNode extends BehaviorNode{
     }
     isLeafNode(){
         return false;
+    }
+    maximumChildren(){
+        return 3;
     }
     enumerateChildren(){
         // Create a copy of children to avoid having length === 3 for returned array
