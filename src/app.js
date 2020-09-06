@@ -237,6 +237,14 @@ window.addEventListener('load', () => {
         // No need to explicitly redraw since the foreground is always redrawn
     });
 
+    $('#clearAgents').on('click', () => {
+        game.agents.forEach(agent => {
+            agent.shape.destroy();
+            agent.pathLine.destroy();
+        });
+        game.agents = [];
+    })
+
     // Add hidden canvas dynamically to draw map image on,
     // because we want to have variable size.
     minimapCanvas = $("<canvas>", {
