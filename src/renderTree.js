@@ -130,6 +130,17 @@ function renderTreeInternal(container){
         }
         function endDrag(evt) {
             if(selectedElement){
+                if(selectedElement.position[0] < paletteOffset[0]){
+                    selectedElement.nodeElement.remove();
+                    if(selectedElement.parentNode){
+                        const nodeInfoChildren = selectedElement.parentNode.childNodes;
+                        const childIndex = nodeInfoChildren.indexOf(selectedElement);
+                        nodeInfoChildren.splice(childIndex, 1);
+                        selectedElement.parentNode.node.spliceChild(childIndex, 1);
+                        reordering = null;
+                        selectedElement = null;
+                    }
+                }
                 if(reordering !== null){
                     const nodeInfo = selectedElement;
                     const currentIndex = nodeInfo.parentNode.childNodes.indexOf(nodeInfo);

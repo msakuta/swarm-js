@@ -132,16 +132,28 @@ export class ForceSuccessNode extends BehaviorNode{
         this.child = child;
     }
     tick(context){
-        const result = this.child.callTick(context);
-        if(result === RUNNING)
-            return RUNNING;
+        if(this.child){
+            try{
+                const result = this.child.callTick(context);
+                if(result === RUNNING)
+                    return RUNNING;
+            }
+            catch(err){
+                console.log("ForceSuccessNode: " + err.message);
+            }
+        }
         return SUCCESS;
     }
     isLeafNode(){
         return false;
     }
     enumerateChildren(){
-        return [this.child];
+        return this.child ? [this.child] : [];
+    }
+    spliceChild(index, count){
+        if(index === 0 && count === 1){
+            this.child = null;
+        }
     }
 }
 
@@ -213,8 +225,14 @@ export class MoveNode extends BehaviorNode{
     tick({game, agent, blackBoard}){
         if(this.inputPort[0]){
             let position = this.resolveInputPort(this.inputPort[0], blackBoard);
-            if(typeof position === "string")
-                position = JSON.parse(position);
+            if(typeof position === "string"){
+                try{
+                    position = JSON.parse(position);
+                }
+                catch(e){
+                    console.log("Error on parsing position: " + e.message);
+                }
+            }
             if(position instanceof Array && position.length == 2){
                 agent.moveTo(game, position);
                 return SUCCESS;
