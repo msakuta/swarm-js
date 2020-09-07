@@ -133,11 +133,19 @@ function renderTreeInternal(container){
                 if(selectedElement.position[0] < paletteOffset[0]){
                     selectedElement.nodeElement.remove();
                     if(selectedElement.parentNode){
+                        // Detach from parent
                         const nodeInfoChildren = selectedElement.parentNode.childNodes;
                         const childIndex = nodeInfoChildren.indexOf(selectedElement);
                         if(selectedElement.parentConnector)
                             selectedElement.parentConnector.remove();
                         nodeInfoChildren.splice(childIndex, 1);
+
+                        // Detach from children
+                        for(const child of selectedElement.childNodes){
+                            child.parentConnector.remove();
+                            child.parentConnector = null;
+                            child.parentNode = null;
+                        }
                         selectedElement.parentNode.node.spliceChild(childIndex, 1);
                         reordering = null;
                         selectedElement = null;

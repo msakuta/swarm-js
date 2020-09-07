@@ -407,6 +407,7 @@ export const allNodeTypes = [
     GetNextNodePositionNode,
     WaitNode,
     FindPathNode,
+    FollowPathNode,
     IfNode,
     IsTargetFoundNode,
     FindTargetNode,
