@@ -113,18 +113,22 @@ function renderTreeInternal(container){
                             nodeInfo.position, nodeInfo.rectElement, childNode.position, childNode.rectElement)));
                 }
                 for(let connector of nodeInfo.inputPortConnectors){
-                    connector(inputPort => {
-                        inputPort.x = nodeInfo.position[0] + inputPort.deltaX;
-                        inputPort.y = nodeInfo.position[1] + inputPort.deltaY;
-                        return inputPort;
-                    });
+                    if(connector){
+                        connector.update(inputPort => {
+                            inputPort.x = nodeInfo.position[0] + inputPort.deltaX;
+                            inputPort.y = nodeInfo.position[1] + inputPort.deltaY;
+                            return inputPort;
+                        });
+                    }
                 }
                 for(let connector of nodeInfo.outputPortConnectors){
-                    connector(outputPort => {
-                        outputPort.x = nodeInfo.position[0] + outputPort.deltaX;
-                        outputPort.y = nodeInfo.position[1] + outputPort.deltaY;
-                        return outputPort;
-                    });
+                    if(connector){
+                        connector.update(outputPort => {
+                            outputPort.x = nodeInfo.position[0] + outputPort.deltaX;
+                            outputPort.y = nodeInfo.position[1] + outputPort.deltaY;
+                            return outputPort;
+                        });
+                    }
                 }
             }
         }
@@ -145,6 +149,16 @@ function renderTreeInternal(container){
                             child.parentConnector.remove();
                             child.parentConnector = null;
                             child.parentNode = null;
+                        }
+
+                        // Detach connectors
+                        for(const connector of selectedElement.inputPortConnectors){
+                            if(connector)
+                                connector.remove();
+                        }
+                        for(const connector of selectedElement.outputPortConnectors){
+                            if(connector)
+                                connector.remove();
                         }
                         selectedElement.parentNode.node.spliceChild(childIndex, 1);
                         reordering = null;
@@ -197,7 +211,7 @@ function renderTreeInternal(container){
                 const foundElement = nodeMap.find(nodeInfo => nodeInfo.rectElement === evt.target);
                 if(!foundElement)
                     return;
-                selectedElement = newNodeInfo(foundElement.node, [...foundElement.position], null);
+                selectedElement = newNodeInfo(foundElement.node.clone(), [...foundElement.position], null);
                 renderNodePalette(selectedElement, 0);
                 offset = getMousePosition(evt);
                 offset[0] -= selectedElement.position[0];

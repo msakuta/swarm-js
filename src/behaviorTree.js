@@ -33,6 +33,10 @@ export class BehaviorNode{
         }
     }
     resolveOutputPort(portName, value, blackBoard){
+        // portName is undefined or null
+        if(!portName){
+            return;
+        }
         if(portName[0] === "{" && portName[portName.length-1] === "}"){
             blackBoard[portName.substr(1, portName.length-2)] = value;
         }
@@ -62,6 +66,8 @@ export class BehaviorNode{
     clone(){
         let ret = Object.create(this.constructor.prototype);
         Object.getOwnPropertyNames(this).forEach(key => ret[key] = this[key]);
+        ret.inputPort = [...this.inputPort];
+        ret.outputPort = [...this.outputPort];
         return ret;
     }
 }
