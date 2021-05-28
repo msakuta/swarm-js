@@ -52,6 +52,67 @@ function renderTreeInternal(container){
         return `[${nodeIndex}] ${nodeName}`;
     }
 
+    class NodeInfo{
+        parentConnectPort = null;
+        parentConnector = null;
+        childNodes = [];
+        inputPortConnectors = [];
+        outputPortConnectors = [];
+        nodeElement = null;
+        rectElement = null;
+        textElement = null;
+        childConnectPort = null;
+        childConnector = null;
+        width = 0;
+        constructor(node, parentNode, position) {
+            this.node = node;
+            this.parentNode = parentNode;
+            this.position = position;
+        }
+
+        addPortConnectorCollection([x, y], portCollection, portValue, index){
+            if(portValue){
+                if(portValue[0] === "{" && portValue[portValue.length-1] === "}"){
+                    const portName = portValue.substr(1, portValue.length-2);
+                    if(!(portName in portCollection))
+                        portCollection[portName] = [];
+                    portCollection[portName].push({
+                        x: this.position[0] + x,
+                        y: this.position[1] + y - 5,
+                        deltaX: x,
+                        deltaY: y - 5,
+                        nodeInfo: this,
+                        portIndex: index,
+                        elem: null,
+                    });
+                }
+            }
+        }
+
+        removePortConnector(portCollection, ports, index){
+            const portValue = ports[index];
+            if(portValue){
+                if(portValue[0] === "{" && portValue[portValue.length-1] === "}"){
+                    const portName = portValue.substr(1, portValue.length-2);
+                    if(!(portName in portCollection))
+                        return;
+                    const array = portCollection[portName];
+                    const deleteIndex = array.findIndex(value => value.nodeInfo === this);
+                    if(array[deleteIndex].elem){
+                        array[deleteIndex].elem.remove();
+                    }
+                    array.splice(deleteIndex, 1);
+                }
+            }
+        }
+        removeInputPortConnector(inputPorts, index){
+            this.removePortConnector(inputPorts, this.node.inputPort, index);
+        }
+        removeOutputPortConnector(outputPorts, index){
+            this.removePortConnector(outputPorts, this.node.outputPort, index);
+        }
+    }
+
     let selectedElement = null;
     let offset;
     let nodeMap = [];
@@ -211,7 +272,7 @@ function renderTreeInternal(container){
                 const foundElement = nodeMap.find(nodeInfo => nodeInfo.rectElement === evt.target);
                 if(!foundElement)
                     return;
-                selectedElement = newNodeInfo(foundElement.node.clone(), [...foundElement.position], null);
+                selectedElement = new NodeInfo(foundElement.node.clone(), null, [...foundElement.position]);
                 renderNodePalette(selectedElement, 0);
                 offset = getMousePosition(evt);
                 offset[0] -= selectedElement.position[0];
@@ -389,7 +450,7 @@ function renderTreeInternal(container){
         let width = Math.max(100, bbox.width + 20);
 
         let y = 40;
-        function addPort(name, textColor, portCollection, portX, writer, reader){
+        function addPort(name, textColor, portCollection, portX, writer, index){
             const portText = document.createElementNS(ns, "text");
             portText.setAttribute('x', 10);
             portText.setAttribute('y', y);
@@ -410,9 +471,10 @@ function renderTreeInternal(container){
                     inputField.onkeydown = event => {
                         if(event.keyCode === 13){ // enter
                             portText.textContent = inputField.value;
-                            removePortConnector(portCollection, reader());
+                            (portCollection === inputPorts ? (a, b) => nodeInfo.removeInputPortConnector(a, b)
+                                : (a, b) => nodeInfo.removeOutputPortConnector(a, b))(portCollection, index);
                             writer(inputField.value);
-                            addPortConnectorCollection(portPosition, portCollection, inputField.value);
+                            nodeInfo.addPortConnectorCollection(portPosition, portCollection, inputField.value, index);
                             updateConnection();
                             cleanup();
                             event.preventDefault();
@@ -442,7 +504,7 @@ function renderTreeInternal(container){
             return portPosition;
         }
 
-        function addPortConnector([x, y], connectorColor, portCollection, portValue){
+        function addPortConnector([x, y], connectorColor, portCollection, portValue, index){
             const portConnector = document.createElementNS(ns, "rect");
             portConnector.setAttribute('x', x - 5);
             portConnector.setAttribute('y', y - 10);
@@ -451,50 +513,17 @@ function renderTreeInternal(container){
             portConnector.setAttributeNS(null, 'fill', connectorColor);
             portConnector.setAttributeNS(null, 'stroke', 'black');
             nodeElement.appendChild(portConnector);
-            addPortConnectorCollection([x, y], portCollection, portValue);
-        }
-
-        function addPortConnectorCollection([x, y], portCollection, portValue){
-            if(portValue){
-                if(portValue[0] === "{" && portValue[portValue.length-1] === "}"){
-                    const portName = portValue.substr(1, portValue.length-2);
-                    if(!(portName in portCollection))
-                        portCollection[portName] = [];
-                    portCollection[portName].push({
-                        x: nodeInfo.position[0] + x,
-                        y: nodeInfo.position[1] + y - 5,
-                        deltaX: x,
-                        deltaY: y - 5,
-                        nodeInfo,
-                    });
-                }
-            }
-        }
-
-        function removePortConnector(portCollection, portValue){
-            if(portValue){
-                if(portValue[0] === "{" && portValue[portValue.length-1] === "}"){
-                    const portName = portValue.substr(1, portValue.length-2);
-                    if(!(portName in portCollection))
-                        return;
-                    const array = portCollection[portName];
-                    const deleteIndex = array.findIndex(value => value.nodeInfo === nodeInfo);
-                    if(array[deleteIndex].elem){
-                        array[deleteIndex].elem.remove();
-                    }
-                    array.splice(deleteIndex, 1);
-                }
-            }
+            nodeInfo.addPortConnectorCollection([x, y], portCollection, portValue, index);
         }
 
         node.inputPort
             .map((portValue, index) => [addPort(portValue || "IN", "#afafff", inputPorts, 0,
-                value => node.inputPort[index] = value, () => node.inputPort[index]), portValue])
-            .forEach(([position, portValue]) => addPortConnector(position, "#7f7fff", inputPorts, portValue));
+                value => node.inputPort[index] = value, index), portValue, index])
+            .forEach(([position, portValue, index]) => addPortConnector(position, "#7f7fff", inputPorts, portValue, index));
         node.outputPort
             .map((portValue, index) => [addPort(portValue || "OUT", "#ffafaf", outputPorts, width,
-                value => node.outputPort[index] = value, () => node.outputPort[index]), portValue])
-            .forEach(([position, portValue]) => addPortConnector(position, "#ff7f7f", outputPorts, portValue));
+                value => node.outputPort[index] = value, index), portValue, index])
+            .forEach(([position, portValue, index]) => addPortConnector(position, "#ff7f7f", outputPorts, portValue, index));
 
         const parentConnectPort = document.createElementNS(ns, "circle");
         parentConnectPort.setAttribute("cx", width / 2);
@@ -536,29 +565,10 @@ function renderTreeInternal(container){
         paletteNodeMap.push(nodeInfo);
     }, false);
 
-    function newNodeInfo(node, offset, parentNode){
-        return {
-            node,
-            parentNode,
-            position: offset,
-            parentConnectPort: null,
-            parentConnector: null,
-            childNodes: [],
-            inputPortConnectors: [],
-            outputPortConnectors: [],
-            nodeElement: null,
-            rectElement: null,
-            textElement: null,
-            childConnectPort: null,
-            childConnector: null,
-            width: 0,
-        }
-    }
-
     const paletteSize = [10, 40];
     const paletteOffset = [10, 40];
     BT.allNodeTypes.forEach((nodeType, index) => {
-        const nodeSize = renderNodePalette(newNodeInfo(new nodeType, [...paletteOffset], null), index);
+        const nodeSize = renderNodePalette(new NodeInfo(new nodeType, null, [...paletteOffset]), index);
         paletteOffset[1] += nodeSize[1] + 10;
         paletteSize[0] = Math.max(paletteSize[0], nodeSize[0]);
         paletteSize[1] = Math.max(paletteSize[1], paletteOffset[1]);
@@ -567,7 +577,7 @@ function renderTreeInternal(container){
     const renderNode = renderNodeTemplate(svgInternal, inputPorts, outputPorts, deferred, makeDraggable, true);
 
     function renderSubTree(node, offset, parentNode=null, nodeIndex=0){
-        let nodeInfo = newNodeInfo(node, offset, parentNode);
+        let nodeInfo = new NodeInfo(node, parentNode, offset);
         if(parentNode)
             parentNode.childNodes.push(nodeInfo);
         const children = node.enumerateChildren();
@@ -621,10 +631,23 @@ function renderTreeInternal(container){
                         portConnector.setAttribute("class", "nondraggable");
                         svgInternal.appendChild(portConnector);
                         connections.push(portConnector);
-                        inputPort.nodeInfo.inputPortConnectors.push(callback =>
-                            setPath(callback(inputPort), outputPort));
-                        outputPort.nodeInfo.outputPortConnectors.push(callback =>
-                            setPath(inputPort, callback(outputPort)));
+                        const inputIndex = inputPort.nodeInfo.inputPortConnectors.length;
+                        inputPort.nodeInfo.inputPortConnectors.push({
+                            update: callback => setPath(callback(inputPort), outputPort),
+                            remove: () => {
+                                portConnector.remove();
+                                inputPort.nodeInfo.removeInputPortConnector(inputPorts, inputPort.portIndex);
+                                inputPort.nodeInfo.inputPortConnectors[inputIndex] = null;
+                            },
+                        });
+                        const outputIndex = inputPort.nodeInfo.outputPortConnectors.length;
+                        outputPort.nodeInfo.outputPortConnectors.push({
+                            update: callback => setPath(inputPort, callback(outputPort)),
+                            remove: () => {
+                                portConnector.remove();
+                                outputPort.nodeInfo.removeOutputPortConnector(outputPorts, outputPort.portIndex);
+                                outputPort.nodeInfo.outputPortConnectors[outputIndex] = null;},
+                        });
                     }
                 }
             }
