@@ -62,7 +62,7 @@ gulp.task('compile', function (cb) {
     return compile(false, cb);
 });
 gulp.task('copy-html', function (cb) {
-    return gulp.src('./index.html').pipe(gulp.dest('./build/'));
+    return gulp.src('./static/index.html').pipe(gulp.dest('./build/'));
 });
 gulp.task('build', gulp.parallel(['compile', 'copy-html']));
 gulp.task('watch', function () {
