@@ -241,11 +241,11 @@ function renderTreeInternal(container){
                         nodeInfo.parentNode.node.spliceChild(reordering, 0, nodeInfo.node);
                         nodeInfo.parentNode.node.spliceChild(currentIndex, 1);
                     }
-                    function retext(nodeInfo, nodeIndex){
+                    const retext = (nodeInfo, nodeIndex) => {
                         nodeInfo.textElement.textContent = getNodeText(nodeInfo, nodeIndex);
                         for(let i = 0; i < nodeInfo.childNodes.length; i++)
                             retext(nodeInfo.childNodes[i], i);
-                    }
+                    };
                     let rootNode = nodeInfo.parentNode;
                     while(rootNode.parentNode)
                         rootNode = rootNode.parentNode;
@@ -338,20 +338,20 @@ function renderTreeInternal(container){
                         targetConnector.parentConnectPort.setAttribute("stroke", "#003f3f");
                     targetConnector = newTargetConnector;
                     event.target.setAttribute("stroke", "#ff7f7f");
-                    function clearHighlight(event){
+                    const clearHighlight = (event) => {
                         event.target.setAttribute("stroke", "#003f3f");
                         targetConnector = null;
                         event.target.removeEventListener("mouseleave", clearHighlight);
-                    }
+                    };
                     event.target.addEventListener("mouseleave", clearHighlight);
                 }
             }
             else if(event.target.classList.contains('childConnectPort')){
                 event.target.setAttribute("stroke", "#ffffff");
-                function clearHighlight(event){
+                const clearHighlight = (event) => {
                     event.target.setAttribute("stroke", "#003f3f");
                     event.target.removeEventListener("mouseleave", clearHighlight);
-                }
+                };
                 event.target.addEventListener("mouseleave", clearHighlight);
             }
         }
