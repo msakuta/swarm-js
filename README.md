@@ -7,7 +7,14 @@ Try it now with your browser!
 
 https://msakuta.github.io/swarm-js/
 
-Details coming soon!
+## Overview
+
+This is an experimental repository to demonstrate many agents (swarm) work in a single simulation.
+
+It exibits a basic behavior tree implementation.
+You can drag the nodes and connectors to modify the behavior online.
+
+![screenshot](readme-img/screenshot01.png)
 
 ## Libraries
 
