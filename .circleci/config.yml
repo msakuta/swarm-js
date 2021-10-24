@@ -35,7 +35,6 @@ jobs:
           command: |
             set -xu
             mkdir -p /tmp/artifacts
-            cp index.html /tmp/artifacts/
             cp -r build /tmp/artifacts/
 
       # Save artifacts
