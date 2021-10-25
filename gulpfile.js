@@ -65,8 +65,8 @@ gulp.task('copy-html', function (cb) {
     return gulp.src('./static/index.html').pipe(gulp.dest('./build/'));
 });
 gulp.task('build', gulp.parallel(['compile', 'copy-html']));
-gulp.task('watch', function () {
-    return watch();
-});
+gulp.task('watch', () => compile(true, () => {}));
+
+gulp.watch(['./static/index.html'], gulp.series('copy-html'));
 
 gulp.task('default', gulp.series('watch'));
