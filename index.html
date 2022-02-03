@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Swarm Game</title>
+    <!-- <script type="text/javascript" src="node_modules/jquery/dist/jquery.min.js"></script> -->
+    <script type="text/javascript" src="index.min.js"></script>
+    <style>
+        body{
+            background-color: #000;
+            color: #fff;
+            text-align: center;
+        }
+
+        #scratch{
+            width: 500px;
+            height: 500px;
+            display: inline-block;
+        }
+
+        #treeContainer{
+            position: relative;
+        }
+
+        /* Class that prevents text selection by mouse dragging.
+        The style is not defined by standard, so we'd write down browser-dependent styles for major browsers.
+        Support by IE11 is somewhat incomplete since Ctrl+A selects the text in elements even with this style. */
+        .noselect{
+            -webkit-touch-callout: none; /* iOS Safari */
+            -webkit-user-select: none;   /* Chrome/Safari/Opera */
+            -khtml-user-select: none;    /* Konqueror */
+            -moz-user-select: none;      /* Firefox */
+            -ms-user-select: none;       /* IE/Edge */
+            user-select: none;           /* non-prefixed version, currently
+                                        not supported by any browser */
+        }
+
+        .nomouse{
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body id="body">
+	<div id="header">
+		<h1>Swarm Game</h1>
+    </div>
+    <div>
+        <label>
+            <input type="checkbox" id="triangulationVisible" checked>
+            Triangulation Visible
+        </label>
+    </div>
+    <div>
+        <label>
+            <input type="checkbox" id="connectionVisible" checked>
+            Connection Visible
+        </label>
+    </div>
+    <div>
+        <label>
+            <input type="checkbox" id="pathVisible" checked>
+            Path Visible
+        </label>
+    </div>
+    <div id="scratch"></div>
+    <div id="minimapContainer"></div>
+    <div id="treeContainer"></div>
+    <hr>
+    <div>Source on <a href="https://github.com/msakuta/swarm-js">GitHub</a>.</div>
+    <div>Powered by <a href="https://konvajs.org/">Konva.js</a>,
+        <a href="https://github.com/RaumZeit/MarchingSquares.js/tree/master">MarchingSquares.js</a>,
+        <a href="https://mourner.github.io/simplify-js/">simplify.js</a> and
+        <a href="https://github.com/mapbox/delaunator">Delaunator</a>.<div>
+</body>
+</html>
